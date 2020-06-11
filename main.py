@@ -649,9 +649,9 @@ async def on_message(message):
             embed = discord.Embed(title="사다리게임 결과", description=S, colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
-        # ===============================================
-        # ===============================================
-        # ===============================================
+        # ==============================================
+        # ==============================================
+        # ==============================================
         elif message.content == "!참가":
             if message.author.voice is None:
                 embed = discord.Embed(title="실패!", description="먼저 음성 채널에 들어와 주세요.", colour=discord.Colour.green())
