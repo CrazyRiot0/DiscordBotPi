@@ -8,6 +8,7 @@ import requests
 import youtube_dl
 import string
 from random import randint
+import random
 import time
 import asyncio
 import os
@@ -85,6 +86,19 @@ def CheckAlreadyUsed(n, list):
             return True
     return False
 
+isNumGamePlaying = False
+NumGamePlayer = None
+NumGame_start_time = None
+NumGame_end_time = None
+NumGameAnswer = None
+NumGameRange_S = None
+NumGameRange_E = None
+NumGameEstRange_S = None
+NumGameEstRange_E = None
+NumGameAttempt = None
+
+
+AdminID = 351677960270381058
 
 @client.event
 async def on_ready():
@@ -97,9 +111,21 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
+    global AdminID
     global ignore
     global flag
-    if ignore == True and message.author.id != 351677960270381058:
+    global isNumGamePlaying
+    global NumGamePlayer
+    global NumGame_start_time
+    global NumGame_end_time
+    global NumGameAnswer
+    global NumGameRange_S
+    global NumGameRange_E
+    global NumGameEstRange_S
+    global NumGameEstRange_E
+    global NumGameAttempt
+
+    if ignore == True and message.author.id != AdminID:
         return
     if message.content.startswith("!") and message.content.startswith("!!") is False:
         print("[", end='')
@@ -208,7 +234,7 @@ async def on_message(message):
                 embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
                 await message.channel.send(embed=embed)
         elif message.content.startswith("!코드"):
-            link = "https://github.com/CrazyRiot0/DiscordBot/blob/master/main.py"
+            link = "https://github.com/CrazyRiot0/DiscordBotPi/blob/master/main.py"
             await message.channel.send(link)
         elif message.content.startswith("!안녕"):
             await message.channel.send("안녕하세요!")
@@ -605,6 +631,7 @@ async def on_message(message):
             inline = False
             embed.add_field(name="**!미니게임**", value="미니게임 명령어를 보여줍니다.", inline=inline)
             embed.add_field(name="**!사다리게임 [목록(띄어쓰기 구분)] / [목록(띄어쓰기 구분)]**", value="사다리게임 결과를 보여줍니다.", inline=inline)
+            embed.add_field(name="**!숫자맞추기 [시작숫자] [끝숫자]**", value="숫자 맞추기 게임을 시작해요!", inline=inline)
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
         elif message.content.startswith("!사다리게임"):
@@ -647,6 +674,119 @@ async def on_message(message):
             for i in range(0, L):
                 S += first[i] + " -> " + end[result[i]] + "\n"
             embed = discord.Embed(title="사다리게임 결과", description=S, colour=discord.Colour.green())
+            embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+            await message.channel.send(embed=embed)
+        elif message.content.startswith("!숫자맞추기"):
+            if isNumGamePlaying and message.author.id != NumGamePlayer:
+                embed = discord.Embed(title="실패!", description="게임이 이미 다른 플레이어에 의해 실행 중이에요.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            msg = message.content
+            list = msg.split(" ")
+            if len(list) == 1:
+                embed = discord.Embed(title="실패!", description="명령어를 제대로 입력해주세요.\n"
+                                                               "**[!숫자맞추기 명령어]** 로 명령어를 확인하세요.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            list.pop(0)
+            query = list[0]
+            if query == "명령어":
+                embed = discord.Embed(title="𝓓𝓲𝓼𝓒𝓸𝓻𝓭𝓑𝓞𝓣 미니게임 숫자맞추기 명령어", colour=discord.Colour.green())
+                inline = False
+                embed.add_field(name="**!숫자맟추기 명령어**", value="숫자맞추기 게임 명령어를 보여줍니다.", inline=inline)
+                embed.add_field(name="**!숫자맟추기 시작 [시작 숫자] [끝 숫자]**", value="숫자맞추기 게임을 시작합니다.", inline=inline)
+                embed.add_field(name="**!숫자 [숫자]**", value="숫자를 선택합니다.", inline=inline)
+                embed.add_field(name="**!숫자맟추기 종료**", value="숫자맞추기 게임을 종료합니다.", inline=inline)
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            elif query == "시작":
+                if isNumGamePlaying:
+                    embed = discord.Embed(title="실패!", description="게임이 이미 플레이 중입니다.", colour=discord.Colour.green())
+                    embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                    await message.channel.send(embed=embed)
+                    return
+                list.pop(0)
+                if len(list) != 2:
+                    embed = discord.Embed(title="실패!", description="숫자 범위를 정확히 입력해주세요.", colour=discord.Colour.green())
+                    embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                    await message.channel.send(embed=embed)
+                    return
+                NumGameRange_S = int(list[0])
+                NumGameRange_E = int(list[1])
+                NumGameAnswer = randint(NumGameRange_S, NumGameRange_E)
+                NumGameEstRange_S = NumGameRange_S
+                NumGameEstRange_E = NumGameRange_E
+                NumGame_start_time = time.time()
+                isNumGamePlaying = True
+                NumGamePlayer = message.author.id
+                NumGameAttempt = 0
+                RangeInStr = "[" + str(NumGameRange_S) + " ~ " + str(NumGameRange_E) + "]"
+                embed = discord.Embed(title="숫자맞추기 게임 시작! " + RangeInStr, description="숫자맞추기 게임을 시작했습니다.\n"
+                                                                        "**[!숫자 [숫자]]** 로 숫자를 맞춰보세요.\n"
+                                                                        "**[!숫자맞추기 종료]** 로 게임을 종료합니다.\n",
+                                      colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+            elif query == "종료":
+                if message.author.id != NumGamePlayer:
+                    if message.author.id == AdminID:
+                        isNumGamePlaying = False
+                        embed = discord.Embed(title="숫자맞추기 게임 종료", description="관리자의 권한으로 숫자맞추기 게임을 종료했습니다.",
+                                              colour=discord.Colour.green())
+                        embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                        await message.channel.send(embed=embed)
+                        return
+                    embed = discord.Embed(title="실패!", description="플레이어가 아닙니다.", colour=discord.Colour.green())
+                    embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                    await message.channel.send(embed=embed)
+                    return
+                isNumGamePlaying = False
+                embed = discord.Embed(title="숫자맞추기 게임 종료", description="숫자맞추기 게임을 종료했습니다.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+        elif message.content.startswith("!숫자"):
+            if message.author.id != NumGamePlayer:
+                embed = discord.Embed(title="실패!", description="플레이어가 아닙니다.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            msg = message.content
+            list = msg.split(" ")
+            if len(list) != 2:
+                embed = discord.Embed(title="실패!", description="숫자를 제대로 입력해주세요.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            num = list[1]
+            num = int(num)
+            if num < NumGameEstRange_S or num > NumGameEstRange_E:
+                embed = discord.Embed(title="실패!", description="범위 안에 있는 숫자를 입력해주세요.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            S = "**" + str(num)
+            if num > NumGameAnswer: # 5 입력 : 답 2      범위 1 <= 정답 <= 100
+                NumGameEstRange_E = num
+                S += " [미만]**\n"
+            elif num < NumGameAnswer: # 5 입력 : 답 10    범위 1 <= 정답 <= 100
+                NumGameEstRange_S = num
+                S += " [초과]**\n"
+            else: # 숫자 맞춤
+                isNumGamePlaying = False
+                NumGameAttempt += 1
+                S = "숫자를 맞췄어요! (**" + str(NumGameAttempt) + "**번 시도)"
+                embed = discord.Embed(title="성공!", description=S, colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            NumGameAttempt += 1
+            AttemptInStr = "[" + str(NumGameAttempt) + "번째 시도]"
+            S += "**[" + str(NumGameEstRange_S) + " < 정답 < " + str(NumGameEstRange_E) + "]**"
+            embed = discord.Embed(title="숫자맞추기 " + AttemptInStr, description=S, colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
         # ==============================================
@@ -766,7 +906,6 @@ async def on_message(message):
             query = urllib.parse.quote(query)
             link = "https://www.youtube.com/results?search_query=" + query
             reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
-            await asyncio.sleep(2)
             html = urllib.request.urlopen(reqUrl).read()
             soup = BeautifulSoup(html, 'html.parser')
             SR.clear()
