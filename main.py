@@ -86,6 +86,7 @@ def CheckAlreadyUsed(n, list):
             return True
     return False
 
+# 숫자맞추기 변수
 isNumGamePlaying = False
 NumGamePlayer = None
 NumGame_start_time = None
@@ -96,6 +97,265 @@ NumGameRange_E = None
 NumGameEstRange_S = None
 NumGameEstRange_E = None
 NumGameAttempt = None
+
+# 오목 변수
+isOmokPlaying = False
+isOmokHosting = False
+OmokPlayer_White = None
+OmokPlayer_White_Name = None
+OmokPlayer_Black = None
+OmokPlayer_Black_Name = None
+Omok_Turn = None
+OmokBoard_Len = 20
+OmokBoard = None
+NumberInCircle = ["⓪", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩",
+                  "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳",
+                  "㉑", "㉒", "㉓", "㉔", "㉕", "㉖", "㉗", "㉘", "㉙", "㉚",
+                  "㉛", "㉜", "㉝", "㉞", "㉟", "㊱", "㊲", "㊳", "㊴", "㊵",
+                  "㊶", "㊷", "㊸", "㊹", "㊺", "㊻", "㊼", "㊽", "㊾", "㊿",]
+WhiteC = "○"
+BlackC = "●"
+EmptySpace = "ㅤ"
+'''
+ㅤ①②③④⑤
+①┌┬┬┬┐
+②├┼┼┼┤
+③├┼┼┼┤
+④└┴┴┴┘'''
+
+def Omok_MakeBoard():
+    len = OmokBoard_Len
+    global OmokBoard
+    OmokBoard = [[0 for x in range(len)] for y in range(len)]
+    for i in range(0, len):
+        for j in range(0, len):
+            OmokBoard[i][j] = "┼"
+
+    for i in range(0, len):
+        OmokBoard[0][i] = "┬"
+        OmokBoard[len-1][i] = "┴"
+        OmokBoard[i][0] = "├"
+        OmokBoard[i][len-1] = "┤"
+
+    OmokBoard[0][0] = "┌"
+    OmokBoard[0][len-1] = "┐"
+    OmokBoard[len-1][0] = "└"
+    OmokBoard[len-1][len-1] = "┘"
+
+def Omok_PlaceInCoord(x, y, color): # color True = White, False = Black
+    global OmokBoard
+    x = x-1
+    y = y-1
+    if color is True:
+        OmokBoard[y][x] = 1
+    else:
+        OmokBoard[y][x] = 0
+
+def OmokBoardInStr():
+    global OmokBoard
+    global OmokBoard_Len
+    global NumberInCircle
+    global EmptySpace
+    S = ""
+    S += EmptySpace
+    for i in range(1, OmokBoard_Len+1):
+        S += NumberInCircle[i]
+    S += "\n"
+
+    for i in range(0, OmokBoard_Len):
+        S += NumberInCircle[i+1]
+        for j in range(0, OmokBoard_Len):
+            if OmokBoard[i][j] == 1:
+                S += WhiteC
+            elif OmokBoard[i][j] == 0:
+                S += BlackC
+            else:
+                S += OmokBoard[i][j]
+        S += "\n"
+    return S
+
+def Omok_CheckBoard():
+    global OmokBoard
+    global OmokBoard_Len
+    for i in range(0, OmokBoard_Len): # 가로를 보아라.
+        count_w = 0
+        count_b = 0
+        prev = None
+        for j in range(0, OmokBoard_Len):
+            if OmokBoard[i][j] == 1: # White
+                if prev != 1:
+                    count_w = 1
+                count_w = count_w + 1
+            elif OmokBoard[i][j] == 0: # Black
+                if prev != 0:
+                    count_b = 1
+                count_b = count_b + 1
+
+            if count_w >= 5:
+                return 1
+            if count_b >= 5:
+                return 0
+            prev = OmokBoard[i][j]
+        
+    for i in range(0, OmokBoard_Len): # 세로를 보아라.
+        count_w = 0
+        count_b = 0
+        prev = None
+        for j in range(0, OmokBoard_Len):
+            if OmokBoard[j][i] == 1: # White
+                if prev != 1:
+                    count_w = 1
+                else:
+                    count_w = count_w + 1
+            elif OmokBoard[j][i] == 0: # Black
+                if prev != 0:
+                    count_b = 1
+                else:
+                    count_b = count_b + 1
+
+            if count_w >= 5:
+                return 1
+            if count_b >= 5:
+                return 0
+            prev = OmokBoard[i][j]
+
+    # 대각선의 시작...
+    len = OmokBoard_Len
+
+    for i in range(0, len):
+        X, Y = i, 0
+
+        count_w = 0
+        count_b = 0
+        prev = None
+
+        while True:
+            if X > len - 1 or Y > len - 1 or X < 0 or Y < 0:
+                break
+
+            if OmokBoard[X][Y] == 1:  # White
+                if prev != 1:
+                    count_w = 1
+                else:
+                    count_w = count_w + 1
+            elif OmokBoard[X][Y] == 0:  # Black
+                if prev != 0:
+                    count_b = 1
+                else:
+                    count_b = count_b + 1
+
+            if count_w >= 5:
+                return 1
+            if count_b >= 5:
+                return 0
+            prev = OmokBoard[X][Y]
+
+            X = X - 1
+            Y = Y + 1
+
+
+    for i in range(0, len):
+        X, Y = len - 1, i
+
+        count_w = 0
+        count_b = 0
+        prev = None
+
+        while True:
+            if X > len - 1 or Y > len - 1 or X < 0 or Y < 0:
+                break
+
+            if OmokBoard[X][Y] == 1:  # White
+                if prev != 1:
+                    count_w = 1
+                else:
+                    count_w = count_w + 1
+            elif OmokBoard[X][Y] == 0:  # Black
+                if prev != 0:
+                    count_b = 1
+                else:
+                    count_b = count_b + 1
+
+            if count_w >= 5:
+                return 1
+            if count_b >= 5:
+                return 0
+            prev = OmokBoard[X][Y]
+
+            X = X - 1
+            Y = Y + 1
+
+    for i in range(0, len):
+        X, Y = len - 1 - i, 0
+
+        count_w = 0
+        count_b = 0
+        prev = None
+
+        while True:
+            if X > len - 1 or Y > len - 1 or X < 0 or Y < 0:
+                break
+
+            if OmokBoard[X][Y] == 1:  # White
+                if prev != 1:
+                    count_w = 1
+                else:
+                    count_w = count_w + 1
+            elif OmokBoard[X][Y] == 0:  # Black
+                if prev != 0:
+                    count_b = 1
+                else:
+                    count_b = count_b + 1
+
+            if count_w >= 5:
+                return 1
+            if count_b >= 5:
+                return 0
+            prev = OmokBoard[X][Y]
+
+            X = X + 1
+            Y = Y + 1
+
+    for i in range(0, len):
+        X, Y = 0, i - 1
+
+        count_w = 0
+        count_b = 0
+        prev = None
+
+        while True:
+            if X > len - 1 or Y > len - 1 or X < 0 or Y < 0:
+                break
+
+            if OmokBoard[X][Y] == 1:  # White
+                if prev != 1:
+                    count_w = 1
+                else:
+                    count_w = count_w + 1
+            elif OmokBoard[X][Y] == 0:  # Black
+                if prev != 0:
+                    count_b = 1
+                else:
+                    count_b = count_b + 1
+
+            if count_w >= 5:
+                return 1
+            if count_b >= 5:
+                return 0
+            prev = OmokBoard[X][Y]
+
+            X = X + 1
+            Y = Y + 1
+
+    return -1
+
+
+async def AsyncOmokCounter():
+    pass
+    global isOmokPlaying
+    while True:
+        if isOmokPlaying:
+            pass
 
 
 AdminID = 351677960270381058
@@ -114,16 +374,6 @@ async def on_message(message):
     global AdminID
     global ignore
     global flag
-    global isNumGamePlaying
-    global NumGamePlayer
-    global NumGame_start_time
-    global NumGame_end_time
-    global NumGameAnswer
-    global NumGameRange_S
-    global NumGameRange_E
-    global NumGameEstRange_S
-    global NumGameEstRange_E
-    global NumGameAttempt
 
     if ignore == True and message.author.id != AdminID:
         return
@@ -497,10 +747,12 @@ async def on_message(message):
         elif message.content.startswith("!계산기"):
             msg = message.content
             query = msg[5:]
-            # result = eval(query)
-            result = 0
-            S = query + " = **" + str(result) + "**"
-            await message.channel.send(S)
+            command = ["qalc", query]
+            result = subprocess.run(command, stdout=subprocess.PIPE)
+            R = result.stdout.decode('utf-8')
+            embed = discord.Embed(title="계산 결과", description=R, colour=discord.Colour.green())
+            embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+            await message.channel.send(embed=embed)
         elif message.content.startswith("!전화번호"):
             query = message.content[6:]
             if len(query) == 0:
@@ -631,7 +883,8 @@ async def on_message(message):
             inline = False
             embed.add_field(name="**!미니게임**", value="미니게임 명령어를 보여줍니다.", inline=inline)
             embed.add_field(name="**!사다리게임 [목록(띄어쓰기 구분)] / [목록(띄어쓰기 구분)]**", value="사다리게임 결과를 보여줍니다.", inline=inline)
-            embed.add_field(name="**!숫자맞추기 [시작숫자] [끝숫자]**", value="숫자 맞추기 게임을 시작해요!", inline=inline)
+            embed.add_field(name="**!숫자맞추기 명령어**", value="숫자 맞추기 게임 명령어를 보여줍니다.", inline=inline)
+            embed.add_field(name="**!오목 명령어**", value="오목 명령어를 보여줍니다.", inline=inline)
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
         elif message.content.startswith("!사다리게임"):
@@ -677,6 +930,17 @@ async def on_message(message):
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
         elif message.content.startswith("!숫자맞추기"):
+            global isNumGamePlaying
+            global NumGamePlayer
+            global NumGame_start_time
+            global NumGame_end_time
+            global NumGameAnswer
+            global NumGameRange_S
+            global NumGameRange_E
+            global NumGameEstRange_S
+            global NumGameEstRange_E
+            global NumGameAttempt
+
             if isNumGamePlaying and message.author.id != NumGamePlayer:
                 embed = discord.Embed(title="실패!", description="게임이 이미 다른 플레이어에 의해 실행 중이에요.", colour=discord.Colour.green())
                 embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
@@ -789,6 +1053,155 @@ async def on_message(message):
             embed = discord.Embed(title="숫자맞추기 " + AttemptInStr, description=S, colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
+        elif message.content.startswith("!오목"):
+            global isOmokPlaying
+            global isOmokHosting
+            global OmokPlayer_White
+            global OmokPlayer_White_Name
+            global OmokPlayer_Black
+            global OmokPlayer_Black_Name
+            global Omok_Turn # True = White, False = Black
+            global OmokBoard_Len
+            global OmokBoard
+
+            msg = message.content
+            list = msg.split(" ")
+            if len(list) == 1:
+                embed = discord.Embed(title="실패!", description="명령어를 제대로 입력해주세요.\n"
+                                                               "**[!오목 명령어]** 로 명령어를 확인하세요.",
+                                      colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            list.pop(0)
+            query = list[0]
+            if query == "명령어":
+                embed = discord.Embed(title="𝓓𝓲𝓼𝓒𝓸𝓻𝓭𝓑𝓞𝓣 미니게임 오목 명령어", colour=discord.Colour.green())
+                inline = False
+                embed.add_field(name="**!오목 명령어**", value="오목 명령어를 보여줍니다.", inline=inline)
+                embed.add_field(name="**!오목 시작**", value="오목 게임을 호스트로 시작합니다.", inline=inline)
+                embed.add_field(name="**!오목 참가**", value="실행 중인 오목 게임에 참가합니다.", inline=inline)
+                embed.add_field(name="**!오목 두기 [x좌표] [y좌표]**", value="해당 좌표에 돌을 놓습니다.", inline=inline)
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            elif query == "시작":
+                isOmokHosting = True
+                OmokPlayer_White = message.author.id
+                OmokPlayer_White_Name = message.author.name
+                # client.loop.create_task(AsyncOmokCounter())
+                embed = discord.Embed(title="성공!", description="오목 게임을 시작했습니다.\n"
+                                                               "**[!오목 참가]** 를 통해 참가하세요.\n"
+                                                               "**[!오목 종료]** 를 통해 게임을 취소합니다.\n",
+                                      colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+            elif query == "종료":
+                isOmokHosting = False
+                isOmokPlaying = False
+                embed = discord.Embed(title="성공!", description="오목 게임을 종료했습니다.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+            elif query == "참가":
+                if isOmokHosting is False:
+                    embed = discord.Embed(title="실패!", description="참가할 게임이 없습니다.", colour=discord.Colour.green())
+                    embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                    await message.channel.send(embed=embed)
+                    return
+                '''if message.author.id == OmokPlayer_White:
+                    embed = discord.Embed(title="실패!", description="호스트는 자기 자신의 게임에 참가할 수 없어요.", colour=discord.Colour.green())
+                    embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                    await message.channel.send(embed=embed)
+                    return'''
+                OmokPlayer_Black = message.author.id
+                OmokPlayer_Black_Name = message.author.name
+                isOmokPlaying = True
+                Omok_MakeBoard()
+
+                S = "**" + OmokPlayer_White_Name + "** 님의 게임에 참가했습니다."
+                embed = discord.Embed(title="성공!", description=S, colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+
+                Omok_Turn = True # 하얀 돌 먼저 시작
+
+                S = "하얀 돌 : **" + OmokPlayer_White_Name + "**\n"
+                S += "검은 돌 : **" + OmokPlayer_Black_Name + "**"
+                embed = discord.Embed(title="게임을 시작합니다!", description=S, colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+
+                embed = discord.Embed(title="오목", description=OmokBoardInStr(), colour=discord.Colour.green())
+                await message.channel.send(embed=embed)
+
+                S = ""
+                if Omok_Turn is True:
+                    S += "하얀 돌 [" + OmokPlayer_White_Name + "]"
+                else:
+                    S += "검은 돌 [" + OmokPlayer_Black_Name + "]"
+                embed = discord.Embed(title=S + " 차례입니다.", colour=discord.Colour.green())
+                await message.channel.send(embed=embed)
+            elif query == "두기":
+                if isOmokPlaying is False:
+                    embed = discord.Embed(title="실패!", description="참가할 게임이 없습니다.", colour=discord.Colour.green())
+                    embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                    await message.channel.send(embed=embed)
+                    return
+                if message.author.id != OmokPlayer_White and message.author.id != OmokPlayer_Black:
+                    embed = discord.Embed(title="실패!", description="플레이어가 아닙니다.", colour=discord.Colour.green())
+                    embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                    await message.channel.send(embed=embed)
+                    return
+                if Omok_Turn is True:
+                    if message.author.id != OmokPlayer_White:
+                        embed = discord.Embed(title="실패!", description="차례가 아니에요.", colour=discord.Colour.green())
+                        embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                        await message.channel.send(embed=embed)
+                        return
+                if Omok_Turn is False:
+                    if message.author.id != OmokPlayer_Black:
+                        embed = discord.Embed(title="실패!", description="차례가 아니에요.", colour=discord.Colour.green())
+                        embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                        await message.channel.send(embed=embed)
+                        return
+
+                msg = message.content
+                list = msg.split(" ")
+                list.pop(0)
+                list.pop(0)
+                if len(list) != 2:
+                    embed = discord.Embed(title="실패!", description="좌표를 제대로 입력해주세요.", colour=discord.Colour.green())
+                    embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                    await message.channel.send(embed=embed)
+                    return
+                x = int(list[0])
+                y = int(list[1])
+                Omok_PlaceInCoord(x, y, Omok_Turn)
+
+                embed = discord.Embed(title="오목", description=OmokBoardInStr(), colour=discord.Colour.green())
+                await message.channel.send(embed=embed)
+
+                result = Omok_CheckBoard()
+                if result == 1:
+                    S = "하얀 돌 [" + OmokPlayer_White_Name +"] 님이 이겼습니다!"
+                    embed = discord.Embed(title=S, colour=discord.Colour.green())
+                    await message.channel.send(embed=embed)
+                    return
+                elif result == 0:
+                    S = "검은 돌 [" + OmokPlayer_Black_Name + "] 님이 이겼습니다!"
+                    embed = discord.Embed(title=S, colour=discord.Colour.green())
+                    await message.channel.send(embed=embed)
+                    return
+                elif result == -1:
+                    S = ""
+                    Omok_Turn = not Omok_Turn
+                    if Omok_Turn is True:
+                        S += "하얀 돌 [" + OmokPlayer_White_Name + "]"
+                    else:
+                        S += "검은 돌 [" + OmokPlayer_Black_Name + "]"
+                    embed = discord.Embed(title=S + " 차례입니다.", colour=discord.Colour.green())
+                    await message.channel.send(embed=embed)
+
         # ==============================================
         # ==============================================
         # ==============================================
@@ -821,6 +1234,7 @@ async def on_message(message):
             ClearYoutubeDL()
         elif (message.content.startswith("!재생") or message.content.startswith("!선택")) and message.content != "!재생목록":
             msg = message.content
+            Searched = False
             if msg.startswith("!재생"):
                 url = msg[4:]
                 if len(url) == 0:
@@ -834,6 +1248,7 @@ async def on_message(message):
                                           colour=discord.Colour.green())
                     embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
                     await message.channel.send(embed=embed)
+                Searched = True
                 choice = int(msg[4:])
                 choice -= 1
                 url = SR[choice].link
@@ -849,7 +1264,7 @@ async def on_message(message):
                 await message.channel.send(embed=embed)
                 return
 
-            if title is None:
+            if Searched is False:
                 reqUrl = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
                 soup = BeautifulSoup(urllib.request.urlopen(reqUrl).read(), 'html.parser')
                 title = soup.find("span", id="eow-title").text
@@ -904,16 +1319,20 @@ async def on_message(message):
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
             query = urllib.parse.quote(query)
-            link = "https://www.youtube.com/results?search_query=" + query
-            reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
-            html = urllib.request.urlopen(reqUrl).read()
-            soup = BeautifulSoup(html, 'html.parser')
-            SR.clear()
-            for vid in soup.find_all(attrs={"class": "yt-uix-tile-link"}, limit=5):
-                URL = "https://www.youtube.com"
-                URL += vid['href']
-                Title = vid['title']
-                SR.append(SearchResult(Title, URL))
+
+            while True:
+                link = "https://www.youtube.com/results?search_query=" + query
+                reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
+                html = urllib.request.urlopen(reqUrl).read()
+                soup = BeautifulSoup(html, 'html.parser')
+                SR.clear()
+                for vid in soup.find_all(attrs={"class": "yt-uix-tile-link"}, limit=5):
+                    URL = "https://www.youtube.com"
+                    URL += vid['href']
+                    Title = vid['title']
+                    SR.append(SearchResult(Title, URL))
+                if len(SR) != 0:
+                    break
 
             List = ""
             i = 1
