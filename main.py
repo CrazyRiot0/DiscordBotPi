@@ -106,7 +106,7 @@ OmokPlayer_White_Name = None
 OmokPlayer_Black = None
 OmokPlayer_Black_Name = None
 Omok_Turn = None
-OmokBoard_Len = 20
+OmokBoard_Len = 10
 OmokBoard = None
 NumberInCircle = ["⓪", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩",
                   "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳",
@@ -144,12 +144,23 @@ def Omok_MakeBoard():
 
 def Omok_PlaceInCoord(x, y, color): # color True = White, False = Black
     global OmokBoard
+    global OmokBoard_Len
+
+    if x > OmokBoard_Len or y > OmokBoard_Len or x < 0 or y < 0:
+        return -1
+
     x = x-1
     y = y-1
+
+    if OmokBoard[y][x] == 1 or OmokBoard[y][x] == 0:
+        return 0
+
     if color is True:
         OmokBoard[y][x] = 1
     else:
         OmokBoard[y][x] = 0
+
+    return True
 
 def OmokBoardInStr():
     global OmokBoard
@@ -185,11 +196,13 @@ def Omok_CheckBoard():
             if OmokBoard[i][j] == 1: # White
                 if prev != 1:
                     count_w = 1
-                count_w = count_w + 1
+                else:
+                    count_w = count_w + 1
             elif OmokBoard[i][j] == 0: # Black
                 if prev != 0:
                     count_b = 1
-                count_b = count_b + 1
+                else:
+                    count_b = count_b + 1
 
             if count_w >= 5:
                 return 1
@@ -401,6 +414,7 @@ async def on_message(message):
             embed.add_field(name="**!상태메시지 [상태메시지]**", value="봇의 상태메시지를 바꿉니다.", inline=inline)
             embed.add_field(name="**!텍스트 [텍스트]**", value="텍스트를 멋있게 바꿔줍니다.", inline=inline)
             embed.add_field(name="**!네이버/구글 [검색어]**", value="네이버 또는 구글로부터 사진을 검색합니다.", inline=inline)
+            embed.add_field(name="**!다나와 [제품]**", value="다나와에서 제품 가격을 보여줍니다.", inline=inline)
             embed.add_field(name="**!미니게임**", value="미니게임 명령어를 보여줍니다.", inline=inline)
             embed.add_field(name="**!명령어 노래봇**", value="노래봇 명령어를 보여줍니다.", inline=inline)
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
@@ -583,15 +597,6 @@ async def on_message(message):
             embed = discord.Embed(title=q, description=result, colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
-        elif message.content.startswith("!다나와"):
-            msg = message.content
-            query = msg[5:]
-            query = urllib.parse.quote(query)
-            if len(query) == 0:
-                await message.channel.send("http://danawa.com/")
-            else:
-                link = "http://search.danawa.com/dsearch.php?query=" + query
-                await message.channel.send(link)
         elif message.content.startswith("!번역"):
             msg = message.content
             check = msg.split(" ")
@@ -624,9 +629,6 @@ async def on_message(message):
 
             wd = webdriver.Chrome(options=chrome_options)
             wd.get(link)
-            # wait = WebDriverWait(wd, 10)
-            # button = wait.until(EC.element_to_be_clickable((By.ID, "btnTranslate")))
-            # button.click()
             wait = WebDriverWait(wd, 10)
             element = wait.until(EC.presence_of_element_located((By.ID, "txtTarget")))
             result = element.text
@@ -645,21 +647,6 @@ async def on_message(message):
             embed = discord.Embed(title=query + " 번역 결과", description=result + S, colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
-        elif message.content.startswith("!영어사전"):
-            msg = message.content
-            query = msg[6:]
-            query = urllib.parse.quote(query)
-            link = "https://en.dict.naver.com/#/search?query=" + query
-            reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
-            soup = BeautifulSoup(urllib.request.urlopen(reqUrl).read(), 'html.parser')
-            code = soup.find("div", class_="row")
-
-            if code is None:
-                await message.channel.send("단어를 찾을 수 없습니다.")
-            else:
-                # result = code.getText('\n', strip=True)
-                result = code.text
-                await message.channel.send(result)
         elif message.content.startswith("!날씨"):
             location = message.content[4:]
             if len(location) == 0:
@@ -732,18 +719,6 @@ async def on_message(message):
 
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
-        elif message.content.startswith("!거리"):
-            msg = message.content
-            query = msg[1:]
-            query = urllib.parse.quote(query)
-            link = "https://www.google.com/search?q=" + query
-            reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
-            soup = BeautifulSoup(urllib.request.urlopen(reqUrl).read(), 'html.parser')
-            code = soup.find("div", class_="dDoNo vk_bk")  # dDoNo vk_bk
-            if code is None:
-                await message.channel.send("거리를 찾을 수 없어요.")
-            distance = code.text
-            await message.channel.send(distance)
         elif message.content.startswith("!계산기"):
             msg = message.content
             query = msg[5:]
@@ -876,6 +851,34 @@ async def on_message(message):
 
             embed = discord.Embed(title=q + " 검색 결과", colour=discord.Colour.green())
             embed.set_image(url=src)
+            embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+            await message.channel.send(embed=embed)
+        elif message.content.startswith("!다나와"):
+            msg = message.content
+            query = msg[5:]
+            if len(query) == 0:
+                embed = discord.Embed(title="실패!", description="제품 이름을 입력해주세요.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            link = "http://search.danawa.com/dsearch.php?query=" + urllib.parse.quote(query)
+
+            chrome_options = webdriver.ChromeOptions()
+            chrome_options.add_argument("headless")
+            chrome_options.add_argument("disable-gpu")
+
+            wd = webdriver.Chrome(options=chrome_options)
+            wd.get(link)
+            wait = WebDriverWait(wd, 10)
+            element = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "prod_name")))
+            prd_name = element.text
+            element = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "click_log_product_standard_price_")))
+            prd_price = element.text
+            # prd_name = wd.find_elements_by_class_name("prod_name")
+            # prd_price = wd.find_elements_by_class_name("price_sect")
+            wd.quit()
+
+            embed = discord.Embed(title=prd_name, description="**"+prd_price+"**", colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
         elif message.content.startswith("!미니게임"):
@@ -1176,7 +1179,18 @@ async def on_message(message):
                     return
                 x = int(list[0])
                 y = int(list[1])
-                Omok_PlaceInCoord(x, y, Omok_Turn)
+                result = Omok_PlaceInCoord(x, y, Omok_Turn)
+
+                if result == -1:
+                    embed = discord.Embed(title="실패!", description="좌표가 범위를 벗어났습니다.", colour=discord.Colour.green())
+                    embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                    await message.channel.send(embed=embed)
+                    return
+                elif result == 0:
+                    embed = discord.Embed(title="실패!", description="좌표에 이미 돌이 놓아져 있어요.", colour=discord.Colour.green())
+                    embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                    await message.channel.send(embed=embed)
+                    return
 
                 embed = discord.Embed(title="오목", description=OmokBoardInStr(), colour=discord.Colour.green())
                 await message.channel.send(embed=embed)
