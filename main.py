@@ -377,8 +377,8 @@ AdminID = 351677960270381058
 async def on_ready():
     print(client.user.id)
     print("ready")
-    # game = discord.Game("𝓟𝓻𝓸𝓰𝓻𝓪𝓶𝓪𝓬𝓲ó𝐧")
-    game = discord.Game("봇이 𝓡𝓟𝓲4로 이동했습니다!")
+    game = discord.Game("𝓟𝓻𝓸𝓰𝓻𝓪𝓶𝓪𝓬𝓲ó𝐧")
+    # game = discord.Game("봇이 𝓡𝓟𝓲4로 이동했습니다!")
     await client.change_presence(status=discord.Status.online, activity=game)
     ClearYoutubeDL()
 
@@ -863,6 +863,10 @@ async def on_message(message):
                 return
             link = "http://search.danawa.com/dsearch.php?query=" + urllib.parse.quote(query)
 
+            embed = discord.Embed(title="검색 중...", description="**"+query+"** 를 검색하는 중...", colour=discord.Colour.green())
+            embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+            await message.channel.send(embed=embed)
+
             chrome_options = webdriver.ChromeOptions()
             chrome_options.add_argument("headless")
             chrome_options.add_argument("disable-gpu")
@@ -870,15 +874,22 @@ async def on_message(message):
             wd = webdriver.Chrome(options=chrome_options)
             wd.get(link)
             wait = WebDriverWait(wd, 10)
+
             element = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "prod_name")))
             prd_name = element.text
             element = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "click_log_product_standard_price_")))
             prd_price = element.text
+            element = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "click_log_product_standard_img_")))
+            prd_image_src = element.get_attribute("src")
+            element = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "click_log_product_standard_title_")))
+            prd_link = element.get_attribute("href")
             # prd_name = wd.find_elements_by_class_name("prod_name")
             # prd_price = wd.find_elements_by_class_name("price_sect")
             wd.quit()
 
             embed = discord.Embed(title=prd_name, description="**"+prd_price+"**", colour=discord.Colour.green())
+            embed.set_image(url=prd_image_src)
+            embed.set_author(name="Danawa (링크)", url=prd_link, icon_url="http://img.danawa.com/new/tour/img/logo/sns_danawa.jpg")
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
         elif message.content.startswith("!미니게임"):
@@ -1337,7 +1348,9 @@ async def on_message(message):
             while True:
                 link = "https://www.youtube.com/results?search_query=" + query
                 reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
-                html = urllib.request.urlopen(reqUrl).read()
+                data = urllib.request.urlopen(reqUrl)
+                await asyncio.sleep(3)
+                html = data.read()
                 soup = BeautifulSoup(html, 'html.parser')
                 SR.clear()
                 for vid in soup.find_all(attrs={"class": "yt-uix-tile-link"}, limit=5):
