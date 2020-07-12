@@ -23,8 +23,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import yt_search
-from requests_html import HTMLSession
-from requests_html import AsyncHTMLSession
+from django.core.validators import URLValidator
+from django.core.exceptions import ValidationError
 
 client = discord.Client()
 
@@ -73,6 +73,9 @@ def ClearYoutubeDL():
 
 flag = True
 
+isRepeating = False
+RepeatCounter = 0
+Counter = 1
 
 async def AsyncPlayer():
     vc = client.voice_clients[0]
@@ -81,12 +84,22 @@ async def AsyncPlayer():
         pass
     print("AsyncPlayer Started.")
     global flag
+    global isRepeating
+    global RepeatCounter
+    global Counter
     while len(client.voice_clients) != 0:
         if vc.is_playing() is False and len(Q) > 0:
             if flag:
                 flag = False
             else:
-                Q.pop(0)
+                if isRepeating is True:
+                    Counter = Counter + 1
+                    if Counter > RepeatCounter:
+                        isRepeating = False
+                        Counter = 1
+                        Q.pop(0)
+                else:
+                    Q.pop(0)
                 if len(Q) == 0:
                     continue
             print("Playing " + Q[0].title + " ...")
@@ -96,7 +109,8 @@ async def AsyncPlayer():
             await client.change_presence(status=discord.Status.online, activity=activity)
         elif vc.is_playing() is False and len(Q) == 0:
             await client.change_presence(status=discord.Status.online, activity=discord.Game(""))
-        await asyncio.sleep(3)
+        await asyncio.sleep(2)
+    isRepeating = False
     print("VoiceClient Not Found. Shutting Down...")
     await client.change_presence(status=discord.Status.online, activity=discord.Game(""))
 
@@ -462,6 +476,7 @@ async def on_message(message):
             embed.add_field(name="**!텍스트 [텍스트]**", value="텍스트를 멋있게 바꿔줍니다.", inline=inline)
             embed.add_field(name="**!사진 [검색어]**", value="구글에서 사진을 검색합니다.", inline=inline)
             embed.add_field(name="**!다나와 [제품]**", value="다나와에서 제품 가격을 보여줍니다.", inline=inline)
+            embed.add_field(name="**!구글 [검색어]**", value="구글에서 검색 결과를 보여줍니다.", inline=inline)
             embed.add_field(name="**!미니게임**", value="미니게임 명령어를 보여줍니다.", inline=inline)
             embed.add_field(name="**!자가진단 [학교] [이름] [생년월일]**", value="자가진단을 대신 해줍니다! (경기도만)", inline=inline)
             embed.add_field(name="**!명령어 노래봇**", value="노래봇 명령어를 보여줍니다.", inline=inline)
@@ -476,6 +491,8 @@ async def on_message(message):
             embed.add_field(name="**!재생 [URL]**", value="유튜브에서 노래를 재생합니다.", inline=inline)
             embed.add_field(name="**!검색 [제목]**", value="유튜브에서 영상을 검색해 결과를 보여줍니다.", inline=inline)
             embed.add_field(name="**!선택 [번호]**", value="검색 결과 중에서 선택합니다.", inline=inline)
+            embed.add_field(name="**!반복 [횟수]**", value="현재 재생중인 노래를 지정한 횟수만큼 반복합니다.", inline=inline)
+            embed.add_field(name="**!반복 중지**", value="현재 재생중인 노래의 반복을 중지합니다.", inline=inline)
             embed.add_field(name="**!일시정지**", value="노래를 일시정지합니다.", inline=inline)
             embed.add_field(name="**!다시재생**", value="노래를 다시 재생합니다.", inline=inline)
             embed.add_field(name="**!스킵**", value="노래를 스킵합니다.", inline=inline)
@@ -563,7 +580,7 @@ async def on_message(message):
                     embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
                     await message.channel.send(embed=embed)
         elif message.content.startswith("!코드"):
-            link = "https://github.com/CrazyRiot0/DiscordBot/blob/master/main.py"
+            link = "https://github.com/CrazyRiot0/DiscordBotPi/blob/master/main.py"
             await message.channel.send(link)
         elif message.content.startswith("!안녕"):
             await message.channel.send("안녕하세요!")
@@ -599,11 +616,65 @@ async def on_message(message):
                 embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
                 await message.channel.send(embed=embed)
                 return
-            org = username
-            username = urllib.parse.quote(username)
-            link = "https://www.op.gg/summoner/userName=" + username
-            embed = discord.Embed(title=org + " 님의 롤 전적", description=link, colour=discord.Colour.green())
-            # embed.set_image(url=)
+            link = "https://www.op.gg/summoner/userName=" + urllib.parse.quote(username)
+
+            reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
+            soup = BeautifulSoup(urllib.request.urlopen(reqUrl).read(), 'html.parser')
+            path = os.path.join(PATH, "test.txt")
+            with open(path, mode="a", encoding="utf-8") as f:
+                f.write(str(soup))
+            code = soup.find("img", {"class": "ProfileImage"})
+            ProfileImageURL = "https:" + code["src"]
+            RankingCode = soup.find("div", {"class": "SummonerRatingMedium"})
+            # code = RankingCode.find("div", {"class": "Medal tip"})
+            # code = code.find("img", {"class": "Image"})
+            # RankingLogoURL = "https:" + code["src"]
+            code = soup.find("span", {"class": "Level tip"})
+            Level = code.text
+            code = soup.find("div", {"class": "TierRank"})
+            SoloRank = ""
+            SoloRankWins = ""
+            SoloRankLosses = ""
+            SoloRankWinLose = ""
+            SoloRankWinRatio = ""
+            FreeRank = ""
+            FreeRankWinLose = ""
+            FreeRankWinRatio = ""
+
+            if code is not None:
+                SoloRank = code.text
+            code = soup.find("span", {"class": "WinLose"})
+            if code is not None:
+                code2 = code.find("span", {"class": "wins"})
+                if code2 is not None:
+                    SoloRankWins = code2.text
+                code2 = code.find("span", {"class": "losses"})
+                if code2 is not None:
+                    SoloRankLosses = code2.text
+                SoloRankWinLose = SoloRankWins + " " + SoloRankLosses
+                code2 = code.find("span", {"class": "winratio"})
+                if code2 is not None:
+                    SoloRankWinRatio = code2.text
+
+            FreeRankCode = soup.find("div", {"class": "sub-tier__info"})
+            code = FreeRankCode.find("div", {"class": "sub-tier__rank-tier"})
+            if code is not None:
+                FreeRank = code.text.strip()
+            code = FreeRankCode.find("span", {"class": "sub-tier__gray-text"})
+            if code is not None:
+                FreeRankWinLose = code.text[2:]
+            code = FreeRankCode.find("div", {"class": "sub-tier__gray-text"})
+            if code is not None:
+                FreeRankWinRatio = code.text.strip()
+
+            embed = discord.Embed(title="", description="", colour=discord.Colour.green())
+            iconurl = "https://img.utdstc.com/icons/league-legends-windows.png:225"
+            embed.set_author(name=username, url=link, icon_url=iconurl)
+            embed.set_thumbnail(url=ProfileImageURL)
+            inline = True
+            embed.add_field(name="레벨", value=Level, inline=inline)
+            embed.add_field(name="솔로랭크", value=SoloRank + "\n" + SoloRankWinLose + "\n" + SoloRankWinRatio, inline=inline)
+            embed.add_field(name="자유랭크", value=FreeRank + "\n" + FreeRankWinLose + "\n" + FreeRankWinRatio, inline=inline)
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
         elif message.content.startswith("!롤체전적"):
@@ -971,6 +1042,36 @@ async def on_message(message):
             embed.set_image(url=prd_image_src)
             embed.set_author(name="Danawa (링크)", url=prd_link,
                              icon_url="http://img.danawa.com/new/tour/img/logo/sns_danawa.jpg")
+            embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+            await message.channel.send(embed=embed)
+        elif message.content.startswith("!구글"):
+            msg = message.content
+            query = msg[4:]
+            link = "https://www.google.com/search?q=" + urllib.parse.quote(query)
+            reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
+            soup = BeautifulSoup(urllib.request.urlopen(reqUrl).read(), 'html.parser')
+            """path = os.path.join(PATH, "test11.txt")
+            with open(path, mode="a", encoding="utf-8") as f:
+               f.write(str(soup))"""
+            code = soup.find_all("div", {"class": "BNeawe"})
+
+            result = code[0].text
+            if code[1] is None:
+                S = result
+            else:
+                url = code[1].text
+                print(url)
+                if url.startswith("http://") is False and url.startswith("https://") is False:
+                    url = "https://" + url
+                    print(url)
+                Validator = URLValidator()
+                try:
+                    Validator(url)
+                except ValidationError:
+                    S = result
+                else:
+                    S = "[" + result + "](" + url + ")"
+            embed = discord.Embed(title=query, description=S, colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
         elif message.content.startswith("!미니게임"):
@@ -1520,6 +1621,44 @@ async def on_message(message):
                                   colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
+        elif message.content.startswith("!반복"):
+            global isRepeating
+            global RepeatCounter
+
+            msg = message.content
+            query = msg[4:]
+            if len(query) == 0:
+                embed = discord.Embed(title="실패!", description="**[!반복 [횟수]]** 를 통해 지정된 횟수만큼 현재 노래를 반복하거나,\n"
+                                                               "**[!반복 중지]** 를 통해 반복을 중지하세요.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            if query == "중지":
+                isRepeating = False
+                embed = discord.Embed(title="성공!", description="현재 재생중인 노래의 반복을 중지합니다.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            else:
+                if query.isnumeric() is False or query == 0:
+                    embed = discord.Embed(title="실패!", description="반복할 횟수를 입력해 주세요.", colour=discord.Colour.green())
+                    embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                    await message.channel.send(embed=embed)
+                    return
+                n = int(query)
+                limit = 20
+                if n > limit:
+                    embed = discord.Embed(title="실패!", description=limit+" 을 초과할 수 없습니다.", colour=discord.Colour.green())
+                    embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                    await message.channel.send(embed=embed)
+                    return
+                isRepeating = True
+                RepeatCounter = n
+
+                embed = discord.Embed(title="성공!", description="현재 재생중인 노래를 **["+str(n)+"번]** 반복합니다.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+
         elif message.content.startswith("!검색"):
             msg = message.content
             query = msg[4:]
@@ -1534,22 +1673,6 @@ async def on_message(message):
             await message.channel.send(embed=embed)
 
             # query = urllib.parse.quote(query)
-
-            """while True:
-                link = "https://www.youtube.com/results?search_query=" + query
-                reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
-                data = urllib.request.urlopen(reqUrl)
-                await asyncio.sleep(1)
-                html = data.read()
-                soup = BeautifulSoup(html, 'html.parser')
-                SR.clear()
-                for vid in soup.find_all(attrs={"class": "yt-uix-tile-link"}, limit=5):
-                    URL = "https://www.youtube.com"
-                    URL += vid['href']
-                    Title = vid['title']
-                    SR.append(SearchResult(Title, URL))
-                if len(SR) != 0:
-                    break"""
 
             yt = yt_search.build("AIzaSyAkAkcxaJvTBVOr07Ax-KaKM56mcwFxouw")
             res = yt.search(query, sMax=5, sType=["video"])
