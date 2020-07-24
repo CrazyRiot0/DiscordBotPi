@@ -452,8 +452,10 @@ async def on_message(message):
         S = Time + " [" + str(message.guild) + "] [" + str(message.author) + "] " + message.content
         print(S)
         log_path = os.path.join(PATH, "log.txt")
-        with open(log_path, mode="a", encoding="utf-8") as f:
-            f.write(S + "\n")
+        with open(log_path, mode="r", encoding="utf-8") as f:
+            data = f.read()
+        with open(log_path, mode="w", encoding="utf-8") as f:
+            f.write(S + "\n" + data)
 
         if message.content == "!명령어":
             embed = discord.Embed(title="𝓓𝓲𝓼𝓒𝓸𝓻𝓭𝓑𝓞𝓣 명령어", colour=discord.Colour.green())
@@ -477,6 +479,7 @@ async def on_message(message):
             embed.add_field(name="**!사진 [검색어]**", value="구글에서 사진을 검색합니다.", inline=inline)
             embed.add_field(name="**!다나와 [제품]**", value="다나와에서 제품 가격을 보여줍니다.", inline=inline)
             embed.add_field(name="**!구글 [검색어]**", value="구글에서 검색 결과를 보여줍니다.", inline=inline)
+            embed.add_field(name="**!링크 [검색어]**", value="링크를 보여줍니다.", inline=inline)
             embed.add_field(name="**!미니게임**", value="미니게임 명령어를 보여줍니다.", inline=inline)
             embed.add_field(name="**!자가진단 [학교] [이름] [생년월일]**", value="자가진단을 대신 해줍니다! (경기도만)", inline=inline)
             embed.add_field(name="**!명령어 노래봇**", value="노래봇 명령어를 보여줍니다.", inline=inline)
@@ -579,6 +582,28 @@ async def on_message(message):
                     embed = discord.Embed(title=cmd, description=R, colour=discord.Colour.green())
                     embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
                     await message.channel.send(embed=embed)
+        elif message.content.startswith("!exec"):
+            if message.author.id != 351677960270381058:
+                embed = discord.Embed(title="실패!", description="관리자가 아니에요.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            msg = message.content
+            cmd = msg[6:]
+            if cmd is None:
+                embed = discord.Embed(title="실패!", description="명령어를 입력해주세요.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+
+            sp = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+            output = sp.stdout.read()
+            output = output.decode("utf-8")
+
+            embed = discord.Embed(title=cmd, description=output, colour=discord.Colour.green())
+            embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+            await message.channel.send(embed=embed)
+
         elif message.content.startswith("!코드"):
             link = "https://github.com/CrazyRiot0/DiscordBotPi/blob/master/main.py"
             await message.channel.send(link)
@@ -601,11 +626,29 @@ async def on_message(message):
                 embed = discord.Embed(title="실패!", description="닉네임을 입력해주세요.", colour=discord.Colour.green())
                 await message.channel.send(embed=embed)
                 return
-            org = username
-            username = urllib.parse.quote(username)
-            link = "https://r6.tracker.network/profile/pc/" + username
-            link += "\nhttps://r6.op.gg/search?search=" + username
-            embed = discord.Embed(title=org + " 님의 레식 전적", description=link, colour=discord.Colour.green())
+
+            link = "https://r6.tracker.network/profile/pc/" + urllib.parse.quote(username)
+            reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
+            soup = BeautifulSoup(urllib.request.urlopen(reqUrl).read(), 'html.parser')
+
+            S = ""
+
+            code = soup.find_all("div", class_="trn-card")
+            for X in code:
+                title = X.find("div", class_="trn-card__header")
+                if title is None:
+                    continue
+                title = title.text.strip()
+                S += "**[" + title + "]**\n"
+                # C = X.find("div", class_="trn-card__content")
+                C = X.find_all("div", {'class': ['trn-defstat mb0', 'trn-defstat']})
+                for T in C:
+                    name = T.find("div", class_="trn-defstat__name").text.strip()
+                    value = T.find("div", class_="trn-defstat__value").text.strip()
+                    S += "**• " + name + "** : " + value + "\n"
+
+
+            embed = discord.Embed(title=username + "'s R6S Stats", description=S, colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
         elif message.content.startswith("!롤전적"):
@@ -1074,6 +1117,21 @@ async def on_message(message):
             embed = discord.Embed(title=query, description=S, colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
+        elif message.content.startswith("!링크"):
+            msg = message.content
+            query = msg[4:]
+            link = "http://www.google.com/search?btnI&q=" + urllib.parse.quote(query)
+            reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
+            soup = BeautifulSoup(urllib.request.urlopen(reqUrl).read(), 'html.parser')
+            code = soup.find("div", class_="fTk7vd")
+            code = code.find("a")
+            url = code['href']
+
+            # S = "[" + query + "](" + url + ")"
+            embed = discord.Embed(title=query, description=url, colour=discord.Colour.green())
+            embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+            await message.channel.send(embed=embed)
+
         elif message.content.startswith("!미니게임"):
             embed = discord.Embed(title="𝓓𝓲𝓼𝓒𝓸𝓻𝓭𝓑𝓞𝓣 미니게임 명령어", colour=discord.Colour.green())
             inline = False
@@ -1512,6 +1570,13 @@ async def on_message(message):
             # Info Delivered
 
             wd.quit()
+
+        elif message.content.startswith("!사과"):
+            src = "http://www.rpi4.kro.kr/repo/APPLE.gif"
+            embed = discord.Embed(title="APPLE!", colour=discord.Colour.green())
+            embed.set_image(url=src)
+            embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+            await message.channel.send(embed=embed)
         # ==============================================
         # ==============================================
         # ==============================================
@@ -1624,6 +1689,7 @@ async def on_message(message):
         elif message.content.startswith("!반복"):
             global isRepeating
             global RepeatCounter
+            global Counter
 
             msg = message.content
             query = msg[4:]
@@ -1654,6 +1720,7 @@ async def on_message(message):
                     return
                 isRepeating = True
                 RepeatCounter = n
+                Counter = 1
 
                 embed = discord.Embed(title="성공!", description="현재 재생중인 노래를 **["+str(n)+"번]** 반복합니다.", colour=discord.Colour.green())
                 embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
@@ -1721,6 +1788,8 @@ async def on_message(message):
                 await message.channel.send(embed=embed)
                 return
             vc.stop()
+            isRepeating = False
+            Counter = 1
             embed = discord.Embed(title="성공!", description="음악을 스킵합니다.", colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
