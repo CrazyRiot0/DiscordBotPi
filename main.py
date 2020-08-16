@@ -42,10 +42,16 @@ PATH = os.path.dirname(os.path.abspath(__file__))
 class VideoInfo:
     title = ""
     path = ""
+    id = ""
+    channel = ""
+    channel_id = ""
 
-    def __init__(self, title, path):
+    def __init__(self, title, path, id, channel, channel_id):
         self.title = title
         self.path = path
+        self.id = id
+        self.channel = channel
+        self.channel_id = channel_id
 
 
 class SearchResult:
@@ -419,12 +425,17 @@ YTS_Title = None
 YTS_VideoID = None
 YTS_VideoURL = None
 YTS_ChannelName = None
+YTS_ChannelID = None
 
 AdminID = 351677960270381058
 
 
 @client.event
 async def on_ready():
+    now = datetime.datetime.now()
+    Time = "[" + str(now.year) + "-" + str(now.month) + "-" + str(now.day) + " " + \
+           str(now.hour) + ":" + str(now.minute) + ":" + str(now.second) + "]"
+    print("\n================="+Time+"=================\n")
     print(client.user.id)
     print("ready")
     # game = discord.Game("𝓟𝓻𝓸𝓰𝓻𝓪𝓶𝓪𝓬𝓲ó𝐧")
@@ -442,6 +453,7 @@ async def on_message(message):
     global YTS_VideoID
     global YTS_VideoURL
     global YTS_ChannelName
+    global YTS_ChannelID
 
     if ignore == True and message.author.id != AdminID:
         return
@@ -631,24 +643,36 @@ async def on_message(message):
             reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
             soup = BeautifulSoup(urllib.request.urlopen(reqUrl).read(), 'html.parser')
 
-            S = ""
+            embed = discord.Embed(title=username + "'s R6S Stats", colour=discord.Colour.green())
 
-            code = soup.find_all("div", class_="trn-card")
+            code = soup.find_all(True, class_="trn-card")
+            index = 1
             for X in code:
-                title = X.find("div", class_="trn-card__header")
+                title = X.find(True, {'class': ['trn-card__header-tab',
+                                                 'trn-card__header-title']})
                 if title is None:
                     continue
                 title = title.text.strip()
-                S += "**[" + title + "]**\n"
-                # C = X.find("div", class_="trn-card__content")
+
                 C = X.find_all("div", {'class': ['trn-defstat mb0', 'trn-defstat']})
+                S = ""
                 for T in C:
                     name = T.find("div", class_="trn-defstat__name").text.strip()
                     value = T.find("div", class_="trn-defstat__value").text.strip()
                     S += "**• " + name + "** : " + value + "\n"
 
+                if len(S) == 0:
+                    continue
 
-            embed = discord.Embed(title=username + "'s R6S Stats", description=S, colour=discord.Colour.green())
+                inline = True
+                if index == 1:
+                    inline = False
+                elif index == 5:
+                    inline = False
+                embed.add_field(name="["+title+"]", value=S, inline=inline)
+                index = index + 1
+
+
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
         elif message.content.startswith("!롤전적"):
@@ -663,9 +687,6 @@ async def on_message(message):
 
             reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
             soup = BeautifulSoup(urllib.request.urlopen(reqUrl).read(), 'html.parser')
-            path = os.path.join(PATH, "test.txt")
-            with open(path, mode="a", encoding="utf-8") as f:
-                f.write(str(soup))
             code = soup.find("img", {"class": "ProfileImage"})
             ProfileImageURL = "https:" + code["src"]
             RankingCode = soup.find("div", {"class": "SummonerRatingMedium"})
@@ -1141,6 +1162,7 @@ async def on_message(message):
             embed.add_field(name="**!오목 명령어**", value="오목 명령어를 보여줍니다.", inline=inline)
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
+
         elif message.content.startswith("!사다리게임"):
             msg = message.content
             list = msg.split(" ")
@@ -1607,7 +1629,7 @@ async def on_message(message):
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
             ClearYoutubeDL()
-        elif (message.content.startswith("!재생") or message.content.startswith("!선택")) and message.content != "!재생목록":
+        elif (message.content.startswith("!재생") or message.content.startswith("!선택")) and message.content != "!재생목록" and message.content != "!재생중":
             msg = message.content
             Searched = False
             if msg.startswith("!재생"):
@@ -1630,10 +1652,14 @@ async def on_message(message):
                 url = "https://www.youtube.com/watch?v=" + YTS_VideoID[choice]
                 # title = SR[choice].title
                 title = YTS_Title[choice]
+                id = YTS_VideoID[choice]
+                channel_name = YTS_ChannelName[choice]
+                channel_id = YTS_ChannelID[choice]
                 YTS_Title.clear()
                 YTS_VideoID.clear()
                 YTS_VideoURL = ""
                 YTS_ChannelName.clear()
+                YTS_ChannelID.clear()
 
             channel = message.author.voice.channel
             server = message.guild
@@ -1679,7 +1705,7 @@ async def on_message(message):
             # download_path, title
             if len(Q) == 0:
                 flag = True
-            Q.append(VideoInfo(title, download_path))
+            Q.append(VideoInfo(title, download_path, id, channel_name, channel_id))
             # AsyncPlayer() will perceive this
 
             embed = discord.Embed(title="성공!", description="**" + Q[-1].title + "** 을 재생 목록에 추가했습니다.",
@@ -1738,15 +1764,14 @@ async def on_message(message):
                                   colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
-
-            # query = urllib.parse.quote(query)
-
+            
             yt = yt_search.build("AIzaSyAkAkcxaJvTBVOr07Ax-KaKM56mcwFxouw")
             res = yt.search(query, sMax=5, sType=["video"])
 
             YTS_Title = res.title
             YTS_VideoID = res.videoId
             YTS_ChannelName = res.channelTitle
+            YTS_ChannelID = res.channelId
 
             List = ""
             i = 1
@@ -1758,6 +1783,24 @@ async def on_message(message):
             embed = discord.Embed(title="**!선택 [1-5]** 로 선택해주세요.\n", description=List, colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
+        elif message.content == "!재생중":
+            if len(Q) == 0:
+                embed = discord.Embed(title="실패!", description="재생 중인 노래가 없습니다.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+
+            Title = Q[0].title
+            VideoURL = "https://www.youtube.com/watch?v=" + Q[0].id
+            ThumbnailURL = "https://i.ytimg.com/vi/" + Q[0].id + "/hqdefault.jpg"
+            ChannelName = Q[0].channel
+            ChannelID = Q[0].channel_id
+            ChannelURL = "https://www.youtube.com/channel/" + ChannelID
+            embed = discord.Embed(title=Title, url=VideoURL, colour=discord.Colour.green())
+            embed.set_author(name=ChannelName, url=ChannelURL)
+            embed.set_thumbnail(url=ThumbnailURL)
+            await message.channel.send(embed=embed)
+
         elif message.content == "!일시정지":
             vc = message.guild.voice_client
             if vc is None:
@@ -1824,10 +1867,7 @@ async def on_message(message):
             i = 1
             List = "**"
             for X in Q:
-                List += str(i)
-                List += ": "
-                List += X.title
-                List += "\n"
+                List += "[ " + str(i) + " ] " + X.title + "\n"
                 i += 1
             List += "**"
 
