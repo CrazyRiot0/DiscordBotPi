@@ -25,6 +25,8 @@ from selenium.common.exceptions import TimeoutException
 import yt_search
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
+import pysrt
+from pytube import YouTube
 
 client = discord.Client()
 
@@ -65,6 +67,7 @@ class SearchResult:
 
 Q = []
 SR = []
+Timer = None
 
 ignore = False
 
@@ -83,6 +86,30 @@ isRepeating = False
 RepeatCounter = 0
 Counter = 1
 
+class Timer():
+    start = None
+    tmp = None
+    isRunning = True
+    def start(self):
+        self.start = time.time()
+    def time(self):
+        if self.isRunning is False:
+            return self.tmp
+        now = time.time()
+        return now - self.start
+    def pause(self):
+        if self.isRunning is False:
+            return -1
+        self.isRunning = False
+        now = time.time()
+        self.tmp = now - self.start
+    def resume(self):
+        if self.isRunning is True:
+            return -1
+        self.isRunning = True
+        now = time.time()
+        self.start = now - self.tmp
+
 async def AsyncPlayer():
     vc = client.voice_clients[0]
     if vc is None:
@@ -93,6 +120,7 @@ async def AsyncPlayer():
     global isRepeating
     global RepeatCounter
     global Counter
+    global Timer
     while len(client.voice_clients) != 0:
         if vc.is_playing() is False and len(Q) > 0:
             if flag:
@@ -108,6 +136,8 @@ async def AsyncPlayer():
                     Q.pop(0)
                 if len(Q) == 0:
                     continue
+            Timer = Timer()
+            Timer.start()
             print("Playing " + Q[0].title + " ...")
             vc.play(discord.FFmpegPCMAudio(Q[0].path))
             song = Q[0].title
@@ -427,6 +457,43 @@ YTS_VideoURL = None
 YTS_ChannelName = None
 YTS_ChannelID = None
 
+async def AsyncSubtitle(srtpath, channel):
+    global Q
+    global Timer
+    title = Q[0].title
+    embed = discord.Embed(title=title+" 자막", colour=discord.Colour.green())
+    message = await channel.send(embed=embed)
+
+    subs = pysrt.open(srtpath)
+    index = 0
+    current = -1
+    while True:
+        sub = subs[index]
+        X = sub.start
+        Y = sub.end
+        sub_time = X.hours*3600 + X.minutes*60 + X.seconds + X.milliseconds/1000
+        sub_time_end = Y.hours*3600 + Y.minutes*60 + Y.seconds + Y.milliseconds/1000
+        print(Timer.time(), sub_time, sub_time_end)
+        if Timer.time() >= sub_time and Timer.time() <= sub_time_end:
+            if current == index:
+                await asyncio.sleep(0.5)
+                continue
+            current = index
+            embed = discord.Embed(title=title+" 자막", description=sub.text, colour=discord.Colour.green())
+            await message.edit(embed=embed)
+        elif Timer.time() >= sub_time_end:
+            index = index + 1
+            if index > len(subs):
+                return
+        await asyncio.sleep(0.5)
+
+    """embed = discord.Embed(title="테스트", description="테스트 시발")
+    message = await channel.send(embed=embed)
+    await asyncio.sleep(2)
+    embed = discord.Embed(title="바뀜", description="바뀜 시발")
+    await message.edit(embed=embed)"""
+
+
 AdminID = 351677960270381058
 
 
@@ -454,6 +521,7 @@ async def on_message(message):
     global YTS_VideoURL
     global YTS_ChannelName
     global YTS_ChannelID
+    global Timer
 
     if ignore == True and message.author.id != AdminID:
         return
@@ -468,6 +536,9 @@ async def on_message(message):
             data = f.read()
         with open(log_path, mode="w", encoding="utf-8") as f:
             f.write(S + "\n" + data)
+
+        #FUCK
+        #client.loop.create_task(AsyncSubtitle(message.channel))
 
         if message.content == "!명령어":
             embed = discord.Embed(title="𝓓𝓲𝓼𝓒𝓸𝓻𝓭𝓑𝓞𝓣 명령어", colour=discord.Colour.green())
@@ -1676,12 +1747,13 @@ async def on_message(message):
                 title = soup.find("span", id="eow-title").text
                 title = title.strip()
 
-            filename = ""
+            """filename = ""
             string_pool = string.ascii_letters
             _LENGTH = 10
             for i in range(_LENGTH):
                 filename += random.choice(string_pool)
-            filename += ".mp3"
+            filename += ".mp3"""
+            filename = id + ".mp3"
 
             download_path = os.path.join(PATH, "youtubedl", filename)
 
@@ -1808,6 +1880,7 @@ async def on_message(message):
                 embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
                 await message.channel.send(embed=embed)
                 return
+            Timer.pause()
             vc.pause()
             embed = discord.Embed(title="성공!", description="음악을 일시정지했어요.", colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
@@ -1819,6 +1892,7 @@ async def on_message(message):
                 embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
                 await message.channel.send(embed=embed)
                 return
+            Timer.resume()
             vc.resume()
             embed = discord.Embed(title="성공!", description="음악을 다시 재생합니다.", colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
@@ -1874,6 +1948,26 @@ async def on_message(message):
             embed = discord.Embed(title="재생목록", description=List, colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
+        elif message.content == "!자막":
+            if len(Q) == 0:
+                embed = discord.Embed(title="실패!", description="재생 중인 노래가 없어요.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            id = Q[0].id
+            url = "https://www.youtube.com/watch?v=" + id
+            yt = YouTube(url)
+            caption = yt.captions.get_by_language_code("ko")
+            if caption == None:
+                caption = yt.captions.all()[0]
+            srt = caption.generate_srt_captions()
+            filename = id + ".srt"
+            path = os.path.join(PATH, "youtubesrt", filename)
+            with open(path, "w") as file:
+                file.write(srt)
+
+            client.loop.create_task(AsyncSubtitle(path, message.channel))
+
         else:
             await message.channel.send("무슨 말인지 모르겠어요.")
 
