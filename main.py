@@ -86,7 +86,7 @@ isRepeating = False
 RepeatCounter = 0
 Counter = 1
 
-class Timer():
+class _Timer():
     start = None
     tmp = None
     isRunning = True
@@ -109,6 +109,7 @@ class Timer():
         self.isRunning = True
         now = time.time()
         self.start = now - self.tmp
+
 
 async def AsyncPlayer():
     vc = client.voice_clients[0]
@@ -136,7 +137,7 @@ async def AsyncPlayer():
                     Q.pop(0)
                 if len(Q) == 0:
                     continue
-            Timer = Timer()
+            Timer = _Timer()
             Timer.start()
             print("Playing " + Q[0].title + " ...")
             vc.play(discord.FFmpegPCMAudio(Q[0].path))
@@ -460,6 +461,7 @@ YTS_ChannelID = None
 async def AsyncSubtitle(srtpath, channel):
     global Q
     global Timer
+    vc = client.voice_clients[0]
     title = Q[0].title
     embed = discord.Embed(title=title+" 자막", colour=discord.Colour.green())
     message = await channel.send(embed=embed)
@@ -467,13 +469,13 @@ async def AsyncSubtitle(srtpath, channel):
     subs = pysrt.open(srtpath)
     index = 0
     current = -1
-    while True:
+    while len(Q) != 0:
         sub = subs[index]
         X = sub.start
         Y = sub.end
         sub_time = X.hours*3600 + X.minutes*60 + X.seconds + X.milliseconds/1000
         sub_time_end = Y.hours*3600 + Y.minutes*60 + Y.seconds + Y.milliseconds/1000
-        print(Timer.time(), sub_time, sub_time_end)
+
         if Timer.time() >= sub_time and Timer.time() <= sub_time_end:
             if current == index:
                 await asyncio.sleep(0.5)
@@ -486,6 +488,8 @@ async def AsyncSubtitle(srtpath, channel):
             if index > len(subs):
                 return
         await asyncio.sleep(0.5)
+
+    print("Song Ended. AsyncSubtitle Shutting Down...")
 
     """embed = discord.Embed(title="테스트", description="테스트 시발")
     message = await channel.send(embed=embed)
@@ -525,7 +529,7 @@ async def on_message(message):
 
     if ignore == True and message.author.id != AdminID:
         return
-    if message.content.startswith("!") and message.content.startswith("!!") is False:
+    if message.content.startswith("!"):
         now = datetime.datetime.now()
         Time = "[" + str(now.year) + "-" + str(now.month) + "-" + str(now.day) + " " + \
                str(now.hour) + ":" + str(now.minute) + ":" + str(now.second) + "]"
@@ -1185,28 +1189,10 @@ async def on_message(message):
             link = "https://www.google.com/search?q=" + urllib.parse.quote(query)
             reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
             soup = BeautifulSoup(urllib.request.urlopen(reqUrl).read(), 'html.parser')
-            """path = os.path.join(PATH, "test11.txt")
-            with open(path, mode="a", encoding="utf-8") as f:
-               f.write(str(soup))"""
             code = soup.find_all("div", {"class": "BNeawe"})
-
             result = code[0].text
-            if code[1] is None:
-                S = result
-            else:
-                url = code[1].text
-                print(url)
-                if url.startswith("http://") is False and url.startswith("https://") is False:
-                    url = "https://" + url
-                    print(url)
-                Validator = URLValidator()
-                try:
-                    Validator(url)
-                except ValidationError:
-                    S = result
-                else:
-                    S = "[" + result + "](" + url + ")"
-            embed = discord.Embed(title=query, description=S, colour=discord.Colour.green())
+
+            embed = discord.Embed(title=query, description=result, colour=discord.Colour.green())
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
         elif message.content.startswith("!링크"):
@@ -1968,16 +1954,153 @@ async def on_message(message):
 
             client.loop.create_task(AsyncSubtitle(path, message.channel))
 
+        elif message.content.startswith("!타르코프"):
+            tags = ["weapon", "ammo", "magazines", "tactical_devices", "weapon_parts", "special_equipment", "maps",
+                    "ammo_boxes", "currency", "keys", "barter", "containers", "provisions", "gear", "meds", "sights", "suppressors"]
+            query = message.content[6:]
+            if len(query) == 0:
+                embed = discord.Embed(title="𝓓𝓲𝓼𝓒𝓸𝓻𝓭𝓑𝓞𝓣 타르코프 명령어", colour=discord.Colour.green())
+                inline = False
+                embed.add_field(name="!타르코프 [물건]", value="타르코프 상점에서 물건을 검색합니다.\nex) !타르코프 AS VAL", inline=inline)
+                embed.add_field(name="!타르코프 [물건] --[태그]", value="지정된 태그를 이용해 검색합니다.\nex) !타르코프 Mosin --weapon", inline=inline)
+                embed.add_field(name="사용 가능한 태그", value=", ".join(tags))
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+
+            link = "https://tarkov-market.com/"
+
+            t = query.find("--")
+            if t != -1:
+                tag = query[t+2:]
+                tag = tag.lower()
+                tag = tag.replace(" ", "_")
+                if tag not in tags:
+                    embed = discord.Embed(title="실패!", description="사용 가능한 태그를 입력해 주세요.", colour=discord.Colour.green())
+                    embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                    await message.channel.send(embed=embed)
+                    return
+                link += "tag/" + tag
+                query = query[:t-1]
+
+            embed = discord.Embed(title="검색 중...", description="**" + query + "** 를 검색하는 중...",
+                                  colour=discord.Colour.green())
+            embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+            await message.channel.send(embed=embed)
+
+            chrome_options = webdriver.ChromeOptions()
+            chrome_options.add_argument("headless")
+            chrome_options.add_argument("disable-gpu")
+            wd = None
+            if platform == "Windows":
+                chromedriver_path = os.path.join(PATH, "executables", "chromedriver.exe")
+                wd = webdriver.Chrome(executable_path=chromedriver_path, options=chrome_options)
+            elif platform == "Linux":
+                wd = webdriver.Chrome(options=chrome_options)
+            wd.get(link)
+            wait = WebDriverWait(wd, 2)
+
+            element = wait.until(EC.presence_of_element_located((By.TAG_NAME, "input")))
+            element.send_keys(query)
+            await asyncio.sleep(2)
+            element = wait.until(EC.presence_of_element_located((By.TAG_NAME, "table")))
+            table = element
+            tbody = table.find_element_by_tag_name("tbody")
+
+            length = len(tbody.find_elements_by_tag_name("tr"))
+            if length == 0:
+                embed = discord.Embed(title="실패!", description="검색 결과가 없습니다.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+
+            tr = tbody.find_elements_by_tag_name("tr")[0]
+            _icon = tr.find_elements_by_tag_name("td")[0]
+            _icon = _icon.find_element_by_tag_name("img")
+            item_icon = _icon.get_attribute("src")
+            _title = tr.find_elements_by_tag_name("td")[1]
+            _title = _title.find_element_by_tag_name("a")
+            item_url = _title.get_attribute("href")
+            item_title = _title.text
+            _price = tr.find_elements_by_tag_name("td")[2]
+            _price = _price.find_element_by_tag_name("span")
+            item_price = _price.text
+
+            embed = discord.Embed(title=item_title, url=item_url, description="**"+item_price+"**\n", colour=discord.Colour.green())
+            embed.set_thumbnail(url=item_icon)
+            embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+
+            limit = 5
+            if length < 5:
+                limit = length
+            if length > 1:
+                for X in range(1, limit):
+                    tr = tbody.find_elements_by_tag_name("tr")[X]
+                    _icon = tr.find_elements_by_tag_name("td")[0]
+                    _icon = _icon.find_element_by_tag_name("img")
+                    item_icon = _icon.get_attribute("src")
+
+                    _title = tr.find_elements_by_tag_name("td")[1]
+                    _title = _title.find_element_by_tag_name("a")
+                    item_url = _title.get_attribute("href")
+                    item_title = _title.text
+
+                    _price = tr.find_elements_by_tag_name("td")[2]
+                    _price = _price.find_element_by_tag_name("span")
+                    item_price = _price.text
+
+                    embed.add_field(name="ㅤ", value="**["+item_title+"]("+item_url+")\n"+item_price+"**", inline=False)
+
+            await message.channel.send(embed=embed)
+
+        elif message.content.startswith("!메타크리틱"):
+            query = message.content[7:]
+            if len(query) == 0:
+                embed = discord.Embed(title="실패!", description="검색할 게임 이름을 입력해주세요.", colour=discord.Colour.green())
+                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+                await message.channel.send(embed=embed)
+                return
+            link = "https://www.metacritic.com/search/all/"+urllib.parse.quote(query)+"/results"
+            reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
+            soup = BeautifulSoup(urllib.request.urlopen(reqUrl).read(), 'html.parser')
+            code = soup.find("li", class_="result first_result")
+            title_code = code.find("h3", class_="product_title")
+            title_code = title_code.find("a")
+            title = title_code.text
+            item_url = "https://www.metacritic.com" + title_code['href']
+            score = code.find("span", class_="metascore_w").text
+            img_code = code.find("div", class_="result_thumbnail")
+            img_code = img_code.find("img")
+            img_url = img_code['src']
+
+            embed = discord.Embed(title=title, url=item_url, description="**"+score+" 점**", colour=discord.Colour.green())
+            embed.set_author(name="metacritic", url="https://www.metacritic.com/", icon_url="https://www.metacritic.com/MC_favicon.png")
+            embed.set_image(url=img_url)
+            embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
+            await message.channel.send(embed=embed)
+        elif message.content.startswith("!멤버정보"):
+            query = message.content[6:]
+            if query == "준서":
+                S = "EZ=서버의 최고 권력자\n" \
+                    "서버의 초창기멤버이자 최고권력자인 EZ인 이서버의 주인인 ȻɍȺƶɏɌɨØŦ보다 더 높은 서열에 속한다\n" \
+                    "성격이 매우 포악하고 힘이 강한것으로 알려져있고 그의 눈을 거슬리게하면 다음날 서버에 사라진다는 소문이있다\n" \
+                    "실제로 SKT T1 CANNA를 닮았다고한다(실제 CANNA라는 소문도있다)"
+                await message.channel.send(S)
+            elif query == "민재":
+                S = "ȻɍȺƶɏɌɨØŦ은 이서버의 창시자이자 𝓓𝓲𝓼𝓒𝓸𝓻𝓭𝓑𝓞𝓣의 개발자이다\n" \
+                    "ȻɍȺƶɏɌɨØŦ은 이서버의 창시자이지만 위엄이 상당히 낮다. ȻɍȺƶɏɌɨØŦ이 EZ에게 말을걸었을떄 ㅗ으로 대답이 돌아오는걸보니 위엄이 얼마나 낮은지 알수있다(사실 EZ의 위엄이 너무 높다는말도 있다)\n" \
+                    "게임폭을 보면 주로 싱글게임을 주로하는걸 알수있는데 레이븐필드,타르코프등 싱글게임을 주로 선호한다.\n" \
+                    "게다가 쓸데없는곳에 돈을 많이쓰는걸 보아하니 흑우임이 틀림없다. 워로봇 5만원이상 현질, 인기끝나가는 오버워치 구매등 으로 인하여 흑우으로 많이 놀림을 받는다.\n" \
+                    "리그오브레전드라는 게임을 굉장히 싫어한다(그래서 닉네임이 ȻɍȺƶɏɌɨØŦ라는 소문이...)\n" \
+                    "컴맹 공포증이있다 컴맹을 보면 답답해하는 증상과 더심해지면 숨을 재데로 쉬지못하는경우도 있다.\n" \
+                    "좆이다."
+                await message.channel.send(S)
         else:
             await message.channel.send("무슨 말인지 모르겠어요.")
-
     elif message.content == "홀리쓋":
         await message.channel.send("보여주는부분이네")
     elif message.content == "사발":
         await message.channel.send("면")
-    # elif message.content.startswith("ㅋ"):
-    #    if message.author.bot is False:
-    #        await message.channel.send("ㅋㅋㅋㅋㅋㅋㅋ")
 
 
 file = os.path.join(PATH, "token")
