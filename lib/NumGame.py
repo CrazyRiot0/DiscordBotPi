@@ -1,0 +1,10 @@
+isNumGamePlaying = False
+NumGamePlayer = None
+NumGame_start_time = None
+NumGame_end_time = None
+NumGameAnswer = None
+NumGameRange_S = None
+NumGameRange_E = None
+NumGameEstRange_S = None
+NumGameEstRange_E = None
+NumGameAttempt = None
