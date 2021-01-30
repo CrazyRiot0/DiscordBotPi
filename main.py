@@ -44,21 +44,487 @@ else:
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 
-def Include(filename):
-    with open(filename) as infile:
-        exec(infile.read(), globals())
+Q = []
+SR = []
+Timer = None
+player_flag = True
+isRepeating = False
+RepeatCounter = 0
+Counter = 1
+YTS_Title = None
+YTS_VideoID = None
+YTS_VideoURL = None
+YTS_ChannelName = None
+YTS_ChannelID = None
 
-libs = os.listdir(os.path.join(PATH, "lib"))
-for f in libs:
-    Include(os.path.join(PATH, "lib", f))
+class VideoInfo:
+    title = ""
+    path = ""
+    id = ""
+    channel = ""
+    channel_id = ""
+    def __init__(self, title, path, id, channel, channel_id):
+        self.title = title
+        self.path = path
+        self.id = id
+        self.channel = channel
+        self.channel_id = channel_id
+
+class SearchResult:
+    title = ""
+    link = ""
+    def __init__(self, title, link):
+        self.title = title
+        self.link = link
+
+def ClearYoutubeDL():
+    path = os.path.join(PATH, "youtubedl")
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+    os.mkdir(path)
+    print("Cleared youtubedl folder.")
+
+class _Timer():
+    start = None
+    tmp = None
+    isRunning = True
+    def start(self):
+        self.start = time.time()
+    def time(self):
+        if self.isRunning is False:
+            return self.tmp
+        now = time.time()
+        return now - self.start
+    def pause(self):
+        if self.isRunning is False:
+            return -1
+        self.isRunning = False
+        now = time.time()
+        self.tmp = now - self.start
+    def resume(self):
+        if self.isRunning is True:
+            return -1
+        self.isRunning = True
+        now = time.time()
+        self.start = now - self.tmp
+
+async def AsyncPlayer():
+    vc = client.voice_clients[0]
+    if vc is None:
+        print("VoiceClient Error.")
+        pass
+    print("AsyncPlayer Started.")
+    global player_flag
+    global isRepeating
+    global RepeatCounter
+    global Counter
+    global Timer
+    while len(client.voice_clients) != 0:
+        if vc.is_playing() is False and len(Q) > 0:
+            if player_flag:
+                player_flag = False
+            else:
+                if isRepeating is True:
+                    Counter = Counter + 1
+                    if Counter > RepeatCounter:
+                        isRepeating = False
+                        Counter = 1
+                        Q.pop(0)
+                else:
+                    Q.pop(0)
+                if len(Q) == 0:
+                    continue
+            Timer = _Timer()
+            Timer.start()
+            print("Playing " + Q[0].title + " ...")
+            vc.play(discord.FFmpegPCMAudio(Q[0].path))
+            song = Q[0].title
+            # activity = discord.Activity(type=discord.ActivityType.listening, name=song)
+            # await client.change_presence(status=discord.Status.online, activity=activity)
+        # elif vc.is_playing() is False and len(Q) == 0:
+            # await client.change_presence(status=discord.Status.online, activity=discord.Game(""))
+        await asyncio.sleep(2)
+    isRepeating = False
+    print("VoiceClient Not Found. Shutting Down...")
+    # await client.change_presence(status=discord.Status.online, activity=discord.Game(""))
+
+def CheckAlreadyUsed(n, list):
+    if len(list) == 0:
+        return False
+    for X in list:
+        if n == X:
+            return True
+    return False
+
+async def AsyncSubtitle(srtpath, channel):
+    global Q
+    global Timer
+    vc = client.voice_clients[0]
+    title = Q[0].title
+    embed = discord.Embed(title=title+" 자막", colour=discord.Colour.green())
+    message = await channel.send(embed=embed)
+
+    subs = pysrt.open(srtpath)
+    index = 0
+    current = -1
+    while len(Q) != 0:
+        sub = subs[index]
+        X = sub.start
+        Y = sub.end
+        sub_time = X.hours*3600 + X.minutes*60 + X.seconds + X.milliseconds/1000
+        sub_time_end = Y.hours*3600 + Y.minutes*60 + Y.seconds + Y.milliseconds/1000
+
+        if Timer.time() >= sub_time and Timer.time() <= sub_time_end:
+            if current == index:
+                await asyncio.sleep(0.5)
+                continue
+            current = index
+            embed = discord.Embed(title=title+" 자막", description=sub.text, colour=discord.Colour.green())
+            await message.edit(embed=embed)
+        elif Timer.time() >= sub_time_end:
+            index = index + 1
+            if index > len(subs):
+                return
+        await asyncio.sleep(0.5)
+
+    print("Song Ended. AsyncSubtitle Shutting Down...")
+
+isOmokPlaying = False
+isOmokHosting = False
+OmokPlayer_White = None
+OmokPlayer_White_Name = None
+OmokPlayer_Black = None
+OmokPlayer_Black_Name = None
+Omok_Turn = None
+OmokBoard_Len = 19
+OmokBoard = None
+NumberInCircle = ["⓪", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩",
+                  "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳",
+                  "㉑", "㉒", "㉓", "㉔", "㉕", "㉖", "㉗", "㉘", "㉙", "㉚",
+                  "㉛", "㉜", "㉝", "㉞", "㉟", "㊱", "㊲", "㊳", "㊴", "㊵",
+                  "㊶", "㊷", "㊸", "㊹", "㊺", "㊻", "㊼", "㊽", "㊾", "㊿", ]
+WhiteC = "○"
+BlackC = "●"
+EmptySpace = "ㅤ"
+
+def Omok_MakeBoard():
+    len = OmokBoard_Len
+    global OmokBoard
+    OmokBoard = [[0 for x in range(len)] for y in range(len)]
+    for i in range(0, len):
+        for j in range(0, len):
+            OmokBoard[i][j] = "┼"
+
+    for i in range(0, len):
+        OmokBoard[0][i] = "┬"
+        OmokBoard[len - 1][i] = "┴"
+        OmokBoard[i][0] = "├"
+        OmokBoard[i][len - 1] = "┤"
+
+    OmokBoard[0][0] = "┌"
+    OmokBoard[0][len - 1] = "┐"
+    OmokBoard[len - 1][0] = "└"
+    OmokBoard[len - 1][len - 1] = "┘"
+
+def Omok_PlaceInCoord(x, y, color):  # color True = White, False = Black
+    global OmokBoard
+    global OmokBoard_Len
+
+    if x > OmokBoard_Len or y > OmokBoard_Len or x < 0 or y < 0:
+        return -1
+
+    x = x - 1
+    y = y - 1
+
+    if OmokBoard[y][x] == 1 or OmokBoard[y][x] == 0:
+        return 0
+
+    if color is True:
+        OmokBoard[y][x] = 1
+    else:
+        OmokBoard[y][x] = 0
+
+    return True
+
+def OmokBoardInStr():
+    global OmokBoard
+    global OmokBoard_Len
+    global NumberInCircle
+    global EmptySpace
+    S = ""
+    S += EmptySpace
+    for i in range(1, OmokBoard_Len + 1):
+        S += NumberInCircle[i]
+    S += "\n"
+
+    for i in range(0, OmokBoard_Len):
+        S += NumberInCircle[i + 1]
+        for j in range(0, OmokBoard_Len):
+            if OmokBoard[i][j] == 1:
+                S += WhiteC
+            elif OmokBoard[i][j] == 0:
+                S += BlackC
+            else:
+                S += OmokBoard[i][j]
+        S += "\n"
+    return S
+
+def Omok_CheckBoard():
+    global OmokBoard
+    global OmokBoard_Len
+    for i in range(0, OmokBoard_Len):  # 가로를 보아라.
+        count_w = 0
+        count_b = 0
+        prev = None
+        for j in range(0, OmokBoard_Len):
+            if OmokBoard[i][j] == 1:  # White
+                if prev != 1:
+                    count_w = 1
+                else:
+                    count_w = count_w + 1
+            elif OmokBoard[i][j] == 0:  # Black
+                if prev != 0:
+                    count_b = 1
+                else:
+                    count_b = count_b + 1
+
+            if count_w >= 5:
+                return 1
+            if count_b >= 5:
+                return 0
+            prev = OmokBoard[i][j]
+
+    for i in range(0, OmokBoard_Len):  # 세로를 보아라.
+        count_w = 0
+        count_b = 0
+        prev = None
+        for j in range(0, OmokBoard_Len):
+            if OmokBoard[j][i] == 1:  # White
+                if prev != 1:
+                    count_w = 1
+                else:
+                    count_w = count_w + 1
+            elif OmokBoard[j][i] == 0:  # Black
+                if prev != 0:
+                    count_b = 1
+                else:
+                    count_b = count_b + 1
+
+            if count_w >= 5:
+                return 1
+            if count_b >= 5:
+                return 0
+            prev = OmokBoard[i][j]
+
+    # 대각선의 시작...
+    len = OmokBoard_Len
+
+    for i in range(0, len):
+        X, Y = i, 0
+
+        count_w = 0
+        count_b = 0
+        prev = None
+
+        while True:
+            if X > len - 1 or Y > len - 1 or X < 0 or Y < 0:
+                break
+
+            if OmokBoard[X][Y] == 1:  # White
+                if prev != 1:
+                    count_w = 1
+                else:
+                    count_w = count_w + 1
+            elif OmokBoard[X][Y] == 0:  # Black
+                if prev != 0:
+                    count_b = 1
+                else:
+                    count_b = count_b + 1
+
+            if count_w >= 5:
+                return 1
+            if count_b >= 5:
+                return 0
+            prev = OmokBoard[X][Y]
+
+            X = X - 1
+            Y = Y + 1
+
+    for i in range(0, len):
+        X, Y = len - 1, i
+
+        count_w = 0
+        count_b = 0
+        prev = None
+
+        while True:
+            if X > len - 1 or Y > len - 1 or X < 0 or Y < 0:
+                break
+
+            if OmokBoard[X][Y] == 1:  # White
+                if prev != 1:
+                    count_w = 1
+                else:
+                    count_w = count_w + 1
+            elif OmokBoard[X][Y] == 0:  # Black
+                if prev != 0:
+                    count_b = 1
+                else:
+                    count_b = count_b + 1
+
+            if count_w >= 5:
+                return 1
+            if count_b >= 5:
+                return 0
+            prev = OmokBoard[X][Y]
+
+            X = X - 1
+            Y = Y + 1
+
+    for i in range(0, len):
+        X, Y = len - 1 - i, 0
+
+        count_w = 0
+        count_b = 0
+        prev = None
+
+        while True:
+            if X > len - 1 or Y > len - 1 or X < 0 or Y < 0:
+                break
+
+            if OmokBoard[X][Y] == 1:  # White
+                if prev != 1:
+                    count_w = 1
+                else:
+                    count_w = count_w + 1
+            elif OmokBoard[X][Y] == 0:  # Black
+                if prev != 0:
+                    count_b = 1
+                else:
+                    count_b = count_b + 1
+
+            if count_w >= 5:
+                return 1
+            if count_b >= 5:
+                return 0
+            prev = OmokBoard[X][Y]
+
+            X = X + 1
+            Y = Y + 1
+
+    for i in range(0, len):
+        X, Y = 0, i - 1
+
+        count_w = 0
+        count_b = 0
+        prev = None
+
+        while True:
+            if X > len - 1 or Y > len - 1 or X < 0 or Y < 0:
+                break
+
+            if OmokBoard[X][Y] == 1:  # White
+                if prev != 1:
+                    count_w = 1
+                else:
+                    count_w = count_w + 1
+            elif OmokBoard[X][Y] == 0:  # Black
+                if prev != 0:
+                    count_b = 1
+                else:
+                    count_b = count_b + 1
+
+            if count_w >= 5:
+                return 1
+            if count_b >= 5:
+                return 0
+            prev = OmokBoard[X][Y]
+
+            X = X + 1
+            Y = Y + 1
+
+    return -1
+
+async def AsyncOmokCounter():
+    pass
+    global isOmokPlaying
+    while True:
+        if isOmokPlaying:
+            pass
+
+def AdminListToArr():
+    file = os.path.join(PATH, "admin.list")
+    f = open(file, "r")
+    str = f.read()
+    f.close()
+    list = str.split('\n')
+    list = [line for line in list if line.strip() != ""]
+    return list
+
+def SetAdminList(list):
+    str = '\n'.join(list)
+    file = os.path.join(PATH, "admin.list")
+    f = open(file, "w")
+    f.write(str)
+    f.close()
+
+def MentionToId(mention):
+    id = mention[3:-1]
+    return id
+
+def IdToMention(id):
+    mention = "<@!"+id+">"
+    return mention
+
 
 ignore = False
 
 namuwikiNum = -1
 namuwikiPrevLink = None
 
+isNumGamePlaying = False
+NumGamePlayer = None
+NumGame_start_time = None
+NumGame_end_time = None
+NumGameAnswer = None
+NumGameRange_S = None
+NumGameRange_E = None
+NumGameEstRange_S = None
+NumGameEstRange_E = None
+NumGameAttempt = None
+
 AdminID = 351677960270381058
 AdminList = AdminListToArr()
+
+async def ServerStatusManager():
+    Guild = client.get_guild(698722442033496195)
+    DateCh = client.get_channel(783552826189152257)
+    MemberCountCh = client.get_channel(783529681072685086)
+    UserCountCh = client.get_channel(783551100803743804)
+    BotCountCh = client.get_channel(783551141866373121)
+    # RefreshTimeCh = client.get_channel(798719197822976011)
+    # OnlineCountCh = client.get_channel(783529729906180107)
+    # OfflineCountCh = client.get_channel(783529755924234261)
+    while True:
+        now = datetime.datetime.now()
+        Date = str(now.year) + "년 " + str(now.month) + "월 " + str(now.day) + "일"
+        MemberCount = Guild.member_count
+        UserCount = len([m for m in Guild.members if not m.bot])
+        BotCount = len([m for m in Guild.members if m.bot])
+        # RefreshTime =
+        # OnlineCount = sum(m.status!=discord.Status.offline and not m.bot for m in Guild.members)
+        # OfflineCount = sum(m.status==discord.Status.offline and not m.bot for m in Guild.members)
+        await DateCh.edit(name="| 📅 " + Date + " |")
+        await MemberCountCh.edit(name="| 👥 전체 멤버 : " + str(MemberCount) + " |")
+        await UserCountCh.edit(name="| 👤 유저 : " + str(UserCount) + " |")
+        await BotCountCh.edit(name="| 🤖 봇 : " + str(BotCount) + " |")
+        # await RefreshTimeCh.edit(name="| 🔄 새로고침 : " + RefreshTime + " |")
+        # await OnlineCountCh.edit(name="| 🟢 온라인 : " + str(OnlineCount) + " |")
+        # await OfflineCountCh.edit(name="| 🔴 오프라인 : " + str(OfflineCount) + " |")
+
+        print("Server Status Updated.")
+        await asyncio.sleep(600)
+
 
 @client.event
 async def on_ready():
@@ -404,7 +870,7 @@ async def on_message(message):
                 FreeRankWinRatio = code.text.strip()
 
             embed = discord.Embed(title="", description="", colour=discord.Colour.green())
-            iconurl = "https://img.utdstc.com/icons/league-legends-windows.png:225"
+            iconurl = "https://opgg-com-image.akamaized.net/attach/images/20190416173507.228538.png"
             embed.set_author(name=username, url=link, icon_url=iconurl)
             embed.set_thumbnail(url=ProfileImageURL)
             inline = True
@@ -740,13 +1206,11 @@ async def on_message(message):
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
             await message.channel.send(embed=embed)
         elif message.content.startswith("!사진") or message.content.startswith(";"):
-            """msg = message.content
-            q = msg[4:]
-            if len(q) == 0:
-                embed = discord.Embed(title="실패!", description="검색할 말을 입력해주세요.", colour=discord.Colour.green())
-                embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
-                await message.channel.send(embed=embed)
-                return
+            if message.content.startswith("!사진"):
+                q = message.content[4:]
+            elif message.content.startswith(";"):
+                q = message.content[1:]
+
             link = "https://www.google.com/search?tbm=isch&q=" + urllib.parse.quote(q)
             reqUrl = urllib.request.Request(link, headers={'User-Agent': 'Mozilla/5.0'})
             soup = BeautifulSoup(urllib.request.urlopen(reqUrl).read(), 'html.parser')
@@ -758,13 +1222,9 @@ async def on_message(message):
             embed = discord.Embed(title=q + " 검색 결과", colour=discord.Colour.green())
             embed.set_image(url=src)
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
-            await message.channel.send(embed=embed)"""
+            await message.channel.send(embed=embed)
 
-            if message.content.startswith("!사진"):
-                q = message.content[4:]
-            elif message.content.startswith(";"):
-                q = message.content[1:]
-
+            """
             if len(q) == 0:
                 embed = discord.Embed(title="실패!", description="검색할 말을 입력해주세요.", colour=discord.Colour.green())
                 embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
@@ -789,6 +1249,7 @@ async def on_message(message):
             await message.channel.send(file=file, embed=embed)
 
             os.remove(path)
+            """
         elif message.content.startswith("!다나와"):
             msg = message.content
             query = msg[5:]
@@ -1778,6 +2239,52 @@ async def on_message(message):
             embed.set_footer(text="Requested by " + message.author.name, icon_url=message.author.avatar_url)
 
             await message.channel.send(embed=embed)
+        elif message.content.startswith("!GTA통계"):
+            username = message.content.split(" ")[1]
+            link = "https://socialclub.rockstargames.com/member/" + username + "/games/gtav/pc/career/overview/gtaonline"
+
+            chrome_options = webdriver.ChromeOptions()
+            chrome_options.add_argument("headless")
+            chrome_options.add_argument("disable-gpu")
+            wd = None
+            if platform == "Windows":
+                chromedriver_path = os.path.join(PATH, "executables", "chromedriver.exe")
+                wd = webdriver.Chrome(executable_path=chromedriver_path, options=chrome_options)
+            elif platform == "Linux":
+                wd = webdriver.Chrome(options=chrome_options)
+
+            signinUrl = "https://signin.rockstargames.com/signin/user-form?cid=socialclub"
+            wd.get(signinUrl)
+            wait = WebDriverWait(wd, 10)
+            webdriver.save_screenshot(os.path.join(PATH, "plz.png"))
+            InsertEmail = wait.until(EC.presence_of_element_located((By.ID, "textInput__11")))
+            InsertPw = wait.until(EC.presence_of_element_located((By.ID, "textInput__12")))
+            ConfirmButton = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "UI__Button-socialclub__btn.UI__Button-socialclub__primary.UI__Button-socialclub__medium.loginform__submit")))
+            InsertEmail.send_keys("jjaenae@naver.com")
+            InsertPw.send_keys("Admin*9248")
+            ConfirmButton.click()
+            wait.until(lambda wd: wd.current_url != signinUrl)
+
+            wd.get(link)
+
+            level = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "rankHex.right-grad.bronze"))).text
+            playtime = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "rankBar")))\
+                .find_element_by_tag_name("h4").text
+            cash = wait.until(EC.presence_of_element_located((By.ID, "cash-value"))).text
+            bank = wait.until(EC.presence_of_element_located((By.ID, "bank-value"))).text
+            cashEarned = wait.until(EC.presence_of_element_located((By.ID, "cashEarned")))\
+                .find_element_by_tag_name("p").text
+            cashSpent = wait.until(EC.presence_of_element_located((By.ID, "cashSpent")))\
+                .find_element_by_tag_name("p").text
+            wd.quit()
+
+            S = "level "+level+"\n"+\
+                "playtime "+playtime+"\n"+\
+                "cash "+cash+"\n"+\
+                "bank "+bank+"\n"+\
+                "cashEarned "+cashEarned+"\n"+\
+                "cashSpent "+cashSpent
+            await message.channel.send(S)
         else:
             None
             #await message.channel.send("무슨 말인지 모르겠어요.")

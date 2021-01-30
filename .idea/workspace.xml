@@ -19,17 +19,14 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8b463d88-a08c-4401-8e4b-d77d8ec3af03" name="Default Changelist" comment="Tarkov Market Search Added.">
-      <change afterPath="P:/.gitignore" afterDir="false" />
-      <change afterPath="P:/lib/AdminManager.py" afterDir="false" />
-      <change afterPath="P:/lib/NumGame.py" afterDir="false" />
-      <change afterPath="P:/lib/Omok.py" afterDir="false" />
-      <change afterPath="P:/lib/ServerStatusManager.py" afterDir="false" />
-      <change afterPath="P:/lib/YouTubePlayer.py" afterDir="false" />
-      <change afterPath="P:/lib/YouTubeSubtitle.py" afterDir="false" />
-      <change beforePath="P:/.idea/P.iml" beforeDir="false" afterPath="P:/.idea/P.iml" afterDir="false" />
-      <change beforePath="P:/.idea/misc.xml" beforeDir="false" afterPath="P:/.idea/misc.xml" afterDir="false" />
+    <list default="true" id="8b463d88-a08c-4401-8e4b-d77d8ec3af03" name="Default Changelist" comment="Added lib folder">
       <change beforePath="P:/.idea/workspace.xml" beforeDir="false" afterPath="P:/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="P:/lib/AdminManager.py" beforeDir="false" />
+      <change beforePath="P:/lib/NumGame.py" beforeDir="false" />
+      <change beforePath="P:/lib/Omok.py" beforeDir="false" />
+      <change beforePath="P:/lib/ServerStatusManager.py" beforeDir="false" />
+      <change beforePath="P:/lib/YouTubePlayer.py" beforeDir="false" />
+      <change beforePath="P:/lib/YouTubeSubtitle.py" beforeDir="false" />
       <change beforePath="P:/main.py" beforeDir="false" afterPath="P:/main.py" afterDir="false" />
       <change beforePath="P:/token" beforeDir="false" afterPath="P:/token" afterDir="false" />
     </list>
@@ -175,7 +172,14 @@
       <option name="project" value="LOCAL" />
       <updated>1602030561508</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="Added lib folder">
+      <created>1607523750104</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1607523750104</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -201,56 +205,25 @@
     <MESSAGE value="Update" />
     <MESSAGE value="YouTube Subtitle Added" />
     <MESSAGE value="Tarkov Market Search Added." />
-    <option name="LAST_COMMIT_MESSAGE" value="Tarkov Market Search Added." />
+    <MESSAGE value="Added lib folder" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added lib folder" />
   </component>
   <component name="WindowStateProjectService">
     <state x="527" y="214" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1603865794109">
       <screen x="0" y="0" width="1536" height="824" />
     </state>
     <state x="527" y="214" key="#com.intellij.fileTypes.FileTypeChooser/0.0.1536.824@0.0.1536.824" timestamp="1603865794109" />
-    <state width="1515" height="261" key="GridCell.Tab.0.bottom" timestamp="1601193008801">
+    <state x="211" y="160" key="Vcs.Push.Dialog.v2" timestamp="1607523806666">
       <screen x="0" y="0" width="1536" height="824" />
     </state>
-    <state width="1515" height="261" key="GridCell.Tab.0.bottom/0.0.1536.824@0.0.1536.824" timestamp="1601193008801" />
-    <state width="1515" height="261" key="GridCell.Tab.0.center" timestamp="1601193008801">
-      <screen x="0" y="0" width="1536" height="824" />
-    </state>
-    <state width="1515" height="261" key="GridCell.Tab.0.center/0.0.1536.824@0.0.1536.824" timestamp="1601193008801" />
-    <state width="1515" height="261" key="GridCell.Tab.0.left" timestamp="1601193008801">
-      <screen x="0" y="0" width="1536" height="824" />
-    </state>
-    <state width="1515" height="261" key="GridCell.Tab.0.left/0.0.1536.824@0.0.1536.824" timestamp="1601193008801" />
-    <state width="1515" height="261" key="GridCell.Tab.0.right" timestamp="1601193008801">
-      <screen x="0" y="0" width="1536" height="824" />
-    </state>
-    <state width="1515" height="261" key="GridCell.Tab.0.right/0.0.1536.824@0.0.1536.824" timestamp="1601193008801" />
-    <state width="1515" height="261" key="GridCell.Tab.1.bottom" timestamp="1601193008802">
-      <screen x="0" y="0" width="1536" height="824" />
-    </state>
-    <state width="1515" height="261" key="GridCell.Tab.1.bottom/0.0.1536.824@0.0.1536.824" timestamp="1601193008802" />
-    <state width="1515" height="261" key="GridCell.Tab.1.center" timestamp="1601193008802">
-      <screen x="0" y="0" width="1536" height="824" />
-    </state>
-    <state width="1515" height="261" key="GridCell.Tab.1.center/0.0.1536.824@0.0.1536.824" timestamp="1601193008802" />
-    <state width="1515" height="261" key="GridCell.Tab.1.left" timestamp="1601193008802">
-      <screen x="0" y="0" width="1536" height="824" />
-    </state>
-    <state width="1515" height="261" key="GridCell.Tab.1.left/0.0.1536.824@0.0.1536.824" timestamp="1601193008802" />
-    <state width="1515" height="261" key="GridCell.Tab.1.right" timestamp="1601193008802">
-      <screen x="0" y="0" width="1536" height="824" />
-    </state>
-    <state width="1515" height="261" key="GridCell.Tab.1.right/0.0.1536.824@0.0.1536.824" timestamp="1601193008802" />
-    <state x="361" y="145" key="Vcs.Push.Dialog.v2" timestamp="1602030563220">
-      <screen x="0" y="0" width="1536" height="824" />
-    </state>
-    <state x="361" y="145" key="Vcs.Push.Dialog.v2/0.0.1536.824@0.0.1536.824" timestamp="1602030563220" />
+    <state x="211" y="160" key="Vcs.Push.Dialog.v2/0.0.1536.824@0.0.1536.824" timestamp="1607523806666" />
     <state x="579" y="326" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1606886565018">
       <screen x="0" y="0" width="1536" height="824" />
     </state>
     <state x="579" y="326" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/0.0.1536.824@0.0.1536.824" timestamp="1606886565018" />
-    <state x="431" y="145" width="672" height="678" key="search.everywhere.popup" timestamp="1603850856158">
+    <state x="431" y="145" width="672" height="678" key="search.everywhere.popup" timestamp="1610500115534">
       <screen x="0" y="0" width="1536" height="824" />
     </state>
-    <state x="431" y="145" width="672" height="678" key="search.everywhere.popup/0.0.1536.824@0.0.1536.824" timestamp="1603850856158" />
+    <state x="431" y="145" width="672" height="678" key="search.everywhere.popup/0.0.1536.824@0.0.1536.824" timestamp="1610500115534" />
   </component>
 </project>
